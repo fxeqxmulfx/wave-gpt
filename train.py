@@ -4,7 +4,7 @@ from typing import Iterable
 import torch
 import torch.nn as nn
 
-from model import BigramLanguageModel
+from model import GPT
 
 
 def load_data() -> str:
@@ -121,7 +121,7 @@ eval_interval = 100
 eval_iters = 200
 batch_size = 16
 
-# INIT val_loss==1.82 train_time==188
+# INIT: val_loss==1.82 train_time==188
 
 
 def main() -> None:
@@ -134,7 +134,7 @@ def main() -> None:
     encoded_text = encoder.encode(text)
     assert decoder.decode(encoded_text) == text
     train_data, val_data = split_data(encoded_text)
-    model = BigramLanguageModel(
+    model = GPT(
         vocab_size=encoder.vocab_size,
         n_embd=n_embd,
         block_size=block_size,
@@ -164,7 +164,7 @@ def main() -> None:
         loss.backward()
         optimizer.step()
     print(f"Train time {(datetime.now() - start).seconds}")
-    context = torch.zeros((1, 1), dtype=torch.long, device=device)
+    context = torch.zeros((1, 1), dtype=torch.int64, device=device)
     print(decoder.decode(model.generate(context, max_new_tokens=2000)[0].tolist()))
 
 

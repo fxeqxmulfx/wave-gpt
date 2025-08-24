@@ -7,14 +7,14 @@ class Head(nn.Module):
     def __init__(self, n_embd: int, block_size: int, head_size: int) -> None:
         super().__init__()
         self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.quary = nn.Linear(n_embd, head_size, bias=False)
+        self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, T, C = x.shape
         k = self.key(x)  # (B, T, C)
-        q = self.quary(x)  # (B, T, C)
+        q = self.query(x)  # (B, T, C)
         wei = q @ k.transpose(-2, -1) * C**-0.5  # (B, T, C) @ (B, C, T) -> (B, T, T)
         wei = wei.masked_fill(
             self.tril[:T, :T] == 0,  # pyright: ignore[reportIndexIssue]
@@ -42,8 +42,8 @@ class MultiHeadAttention(nn.Module):
         self.proj = nn.Linear(n_embd, n_embd)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        heads = self.heads
-        result = torch.cat(tuple(h(x) for h in heads), dim=-1)
+        result = torch.cat(tuple(h(x) for h in self.heads), dim=-1)
+        result = self.proj(result)
         return result
 
 
@@ -79,7 +79,7 @@ class Block(nn.Module):
         return x
 
 
-class BigramLanguageModel(nn.Module):
+class GPT(nn.Module):
     def __init__(
         self,
         vocab_size: int,
@@ -114,21 +114,32 @@ class BigramLanguageModel(nn.Module):
         x = self.blocks(x)  # (B, T, C)
         x = self.ln_f(x)  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, vocab_size)
-        if targets is None:
-            loss = None
-        else:
+        loss = None
+        if targets is not None:
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             targets = targets.view(B * T)
             loss = F.cross_entropy(logits, targets)
         return logits, loss
 
+    @torch.no_grad()
     def generate(self, idx: torch.Tensor, max_new_tokens: int) -> torch.Tensor:
-        for _ in range(max_new_tokens):
-            idx_cond = idx[:, -self.block_size :]
+        block_size = self.block_size
+        device = idx.device
+        B, T = idx.shape
+        all_tokens = torch.full(
+            (B, T + max_new_tokens),
+            0,
+            dtype=torch.int64,
+            device=device,
+        )
+        all_tokens[:, :T] = idx[:, :T]
+        for current_pos in range(T, T + max_new_tokens):
+            start_slice = max(0, current_pos - block_size)
+            idx_cond = all_tokens[:, start_slice:current_pos]
             logits, _ = self(idx_cond)
-            logits = logits[:, -1, :]  # (B, C)
+            logits = logits[:, -1]  # (B, C)
             probs = F.softmax(logits, dim=-1)  # (B, C)
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
-            idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
-        return idx
+            all_tokens[:, current_pos] = idx_next.squeeze()
+        return all_tokens
