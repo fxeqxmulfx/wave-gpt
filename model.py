@@ -93,7 +93,7 @@ class GPT(nn.Module):
             *tuple(Block(n_embd=n_embd, n_head=n_head) for _ in range(n_layer))
         )
         self.ln_f = nn.LayerNorm(n_embd)
-        self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
         self.register_buffer("position_embedding_idx", torch.arange(block_size))
 
     def forward(
