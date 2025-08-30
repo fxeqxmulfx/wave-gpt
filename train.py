@@ -3,6 +3,7 @@ from typing import Iterable
 
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 from model import GPT
 
@@ -55,6 +56,7 @@ def split_data(
 def get_batch(
     data: tuple[int, ...],
     batch_size: int,
+    block_size: int,
     device: str,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     ix = torch.randint(len(data) - block_size, (batch_size,))
@@ -86,6 +88,8 @@ def estimate_loss(
     train_data: tuple[int, ...],
     val_data: tuple[int, ...],
     batch_size: int,
+    block_size: int,
+    eval_iters: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     model.eval()
     device = next(model.parameters()).device.type
@@ -98,6 +102,7 @@ def estimate_loss(
             X, Y = get_batch(
                 data=data,
                 batch_size=batch_size,
+                block_size=block_size,
                 device=device,
             )
             _, loss = model(X, Y)
@@ -111,59 +116,121 @@ def estimate_loss(
     return train, val
 
 
-n_embd = 64
-block_size = 32
-n_head = 4
-n_layer = 4
-learning_rate = 1e-3
-max_iters = 5_000
-eval_interval = 100
-eval_iters = 200
-batch_size = 16
-
-# INIT: val_loss==1.82 train_time==188
-
-
-def main() -> None:
-    torch.manual_seed(42)
-    text = load_data()
-    chars = get_chars(text)
-    encoder = Encoder(chars)
-    decoder = Decoder(chars)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    encoded_text = encoder.encode(text)
-    assert decoder.decode(encoded_text) == text
-    train_data, val_data = split_data(encoded_text)
+def train(
+    embedding: tuple[int, ...],
+    vocab_size: int,
+    device: str,
+    n_embd: int,
+    block_size: int,
+    n_head: int,
+    n_layer: int,
+    learning_rate: float,
+    max_iters: int,
+    eval_interval: int,
+    eval_iters: int,
+    batch_size: int,
+) -> tuple[GPT, float, int]:
+    train_data, val_data = split_data(embedding)
     model = GPT(
-        vocab_size=encoder.vocab_size,
+        vocab_size=vocab_size,
         n_embd=n_embd,
         block_size=block_size,
         n_head=n_head,
         n_layer=n_layer,
     )
-    model.to(device)
-    print(sum(p.numel() for p in model.parameters()) / 1e6, "M parameters")
+    model.to(device).compile(mode="max-autotune-no-cudagraphs")
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     start = datetime.now()
-    for iter in range(max_iters):
+    pbar = tqdm(range(max_iters))
+    val_loss = torch.inf
+    for iter in pbar:
         if iter % eval_interval == 0 or iter == max_iters - 1:
             train_loss, val_loss = estimate_loss(
                 model=model,
                 train_data=train_data,
                 val_data=val_data,
                 batch_size=batch_size,
+                block_size=block_size,
+                eval_iters=eval_iters,
             )
-            print(f"step {iter}: train loss {train_loss:.4f}, val loss {val_loss:.4f}")
+            pbar.set_description(
+                f"step {iter}: train loss {train_loss:.4f}, val loss {val_loss:.4f}"
+            )
         xb, yb = get_batch(
             data=train_data,
             batch_size=batch_size,
+            block_size=block_size,
             device=device,
         )
         _, loss = model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
-    print(f"Train time {(datetime.now() - start).seconds}")
+    train_time = (datetime.now() - start).seconds
+    result = model, float(val_loss), train_time
+    return result
+
+
+# INIT: val_loss==1.82 train_time==188
+# ADD torch.compile: val_loss=1.83 train_time=49.67
+
+
+def main() -> None:
+    n_embd = 64
+    block_size = 32
+    n_head = 4
+    n_layer = 4
+    learning_rate = 1e-3
+    max_iters = 5_000
+    eval_interval = 500
+    eval_iters = 200
+    batch_size = 16
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    text = load_data()
+    chars = get_chars(text)
+    encoder = Encoder(chars)
+    decoder = Decoder(chars)
+    encoded_text = encoder.encode(text)
+    assert decoder.decode(encoded_text) == text
+    n = 3
+    val_loss_array = torch.zeros((n,))
+    train_time_array = torch.zeros((n,))
+    model, val_loss, train_time = train(
+        embedding=encoded_text,
+        vocab_size=encoder.vocab_size,
+        device=device,
+        n_embd=n_embd,
+        block_size=block_size,
+        n_head=n_head,
+        n_layer=n_layer,
+        learning_rate=learning_rate,
+        max_iters=max_iters,
+        eval_interval=eval_interval,
+        eval_iters=eval_iters,
+        batch_size=batch_size,
+    )
+    val_loss_array[0] = val_loss
+    train_time_array[0] = train_time
+    for i in range(1, n):
+        _, val_loss, train_time = train(
+            embedding=encoded_text,
+            vocab_size=encoder.vocab_size,
+            device=device,
+            n_embd=n_embd,
+            block_size=block_size,
+            n_head=n_head,
+            n_layer=n_layer,
+            learning_rate=learning_rate,
+            max_iters=max_iters,
+            eval_interval=eval_interval,
+            eval_iters=eval_iters,
+            batch_size=batch_size,
+        )
+        val_loss_array[i] = val_loss
+        train_time_array[i] = train_time
+    val_loss = float(torch.mean(val_loss_array))
+    train_time = float(torch.mean(train_time_array))
+    print(f"val_loss={round(val_loss, 2)} train_time={round(train_time, 2)}")
     context = torch.zeros((1, 1), dtype=torch.int64, device=device)
     print(decoder.decode(model.generate(context, max_new_tokens=2000)[0].tolist()))
 
