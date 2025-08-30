@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Iterable
 
+import schedulefree
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -82,7 +83,7 @@ def get_batch(
     return x, y
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def estimate_loss(
     model: nn.Module,
     train_data: tuple[int, ...],
@@ -91,7 +92,6 @@ def estimate_loss(
     block_size: int,
     eval_iters: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    model.eval()
     device = next(model.parameters()).device.type
     train = torch.Tensor()
     val = train
@@ -112,7 +112,6 @@ def estimate_loss(
             train = mean_loss
         else:
             val = mean_loss
-    model.train()
     return train, val
 
 
@@ -125,6 +124,8 @@ def train(
     n_head: int,
     n_layer: int,
     learning_rate: float,
+    betas: tuple[float, float],
+    weight_decay: float,
     max_iters: int,
     eval_interval: int,
     eval_iters: int,
@@ -144,12 +145,21 @@ def train(
     )
     torch.set_float32_matmul_precision("high")
     model.to(device).compile(mode="max-autotune-no-cudagraphs")
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = schedulefree.AdamWScheduleFree(
+        model.parameters(),
+        lr=learning_rate,
+        betas=betas,
+        weight_decay=weight_decay,
+    )
     start = datetime.now()
     pbar = tqdm(range(max_iters))
     val_loss = torch.inf
+    model.train()
+    optimizer.train()
     for iter in pbar:
         if iter % eval_interval == 0 or iter == max_iters - 1:
+            model.eval()
+            optimizer.eval()
             train_loss, val_loss = estimate_loss(
                 model=model,
                 train_data=train_data,
@@ -158,6 +168,8 @@ def train(
                 block_size=block_size,
                 eval_iters=eval_iters,
             )
+            model.train()
+            optimizer.train()
             pbar.set_description(
                 f"step {iter}: train loss {train_loss:.4f}, val loss {val_loss:.4f}"
             )
@@ -172,6 +184,7 @@ def train(
         loss.backward()
         optimizer.step()
     train_time = (datetime.now() - start).seconds
+    model.eval()
     result = model, float(val_loss), train_time
     return result
 
@@ -184,6 +197,7 @@ def train(
 # ADD RMSNorm: val_loss=1.82 train_time=28.0
 # ADD RoPE: val_loss=1.76 train_time=28.67
 # ADD SwiGLU: val_loss=1.74 train_time=29.67
+# ADD AdamWScheduleFree: val_loss=1.68 train_time=28.0
 
 
 def main() -> None:
@@ -191,7 +205,9 @@ def main() -> None:
     block_size = 32
     n_head = 4
     n_layer = 4
-    learning_rate = 1e-3
+    learning_rate = 1e-2
+    betas = (0.9, 0.95)
+    weight_decay = 0.1
     max_iters = 5_000
     eval_interval = 5_000
     eval_iters = 200
@@ -217,6 +233,8 @@ def main() -> None:
         n_head=n_head,
         n_layer=n_layer,
         learning_rate=learning_rate,
+        betas=betas,
+        weight_decay=weight_decay,
         max_iters=max_iters,
         eval_interval=eval_interval,
         eval_iters=eval_iters,
@@ -236,6 +254,8 @@ def main() -> None:
             n_head=n_head,
             n_layer=n_layer,
             learning_rate=learning_rate,
+            betas=betas,
+            weight_decay=weight_decay,
             max_iters=max_iters,
             eval_interval=eval_interval,
             eval_iters=eval_iters,

@@ -199,9 +199,8 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits, targets)
         return logits, loss
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def generate(self, idx: torch.Tensor, max_new_tokens: int) -> torch.Tensor:
-        self.eval()
         block_size = self.block_size
         device = idx.device
         B, T = idx.shape
@@ -220,5 +219,4 @@ class GPT(nn.Module):
             probs = F.softmax(logits, dim=-1)  # (B, C)
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
             all_tokens[:, current_pos] = idx_next.squeeze()
-        self.train()
         return all_tokens
