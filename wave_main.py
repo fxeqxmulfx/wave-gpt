@@ -14,7 +14,7 @@ def encode(
     scaled_diff = diff * scale
     residual = scaled_diff - scaled_diff.to(torch.int64)
     residual = torch.diff(
-        torch.floor(torch.cumsum(residual, dim=0)).to(torch.int64),
+        torch.round(torch.cumsum(residual, dim=0)).to(torch.int64),
         dim=0,
         prepend=torch.zeros(residual[:1].shape, dtype=torch.int64),
     )
@@ -39,6 +39,7 @@ def mae(x: torch.Tensor, y: torch.Tensor) -> float:
 
 # ADD wave encoder decoder: val_loss=0.18 train_time=27.0 MAE=0.0061
 # FIX wave encoder decoder: val_loss=0.19 train_time=27.0 MAE=0.0041
+# UPD use round instead floor: val_loss=0.19 train_time=26.67 MAE=0.0016
 
 
 def main() -> None:
@@ -67,7 +68,7 @@ def main() -> None:
     )
     start, scale, embedding = encode(inp, vocab_size)
     torch.testing.assert_close(
-        decode(start, scale, embedding, vocab_size), inp, rtol=1, atol=0.0076
+        decode(start, scale, embedding, vocab_size), inp, rtol=1, atol=0.0039
     )
     n = 3
     val_loss_array = torch.zeros((n,))
