@@ -7,3 +7,4 @@ https://www.youtube.com/watch?v=kCc8FmEb1nY&list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhR
 - [arxiv.org: Attention Is All You Need](https://arxiv.org/abs/1706.03762)
 - [arxiv.org: Root Mean Square Layer Normalization](https://arxiv.org/abs/1910.07467)
 - [arxiv.org: RoFormer: Enhanced Transformer with Rotary Position Embedding](https://arxiv.org/abs/2104.09864)
+- [arxiv.org: GLU Variants Improve Transformer](https://arxiv.org/abs/2002.05202)

@@ -89,13 +89,30 @@ class MultiHeadAttention(nn.Module):
         return y
 
 
+class SwiGLU(nn.Module):
+    def __init__(self, alpha: float, limit: float):
+        super().__init__()
+        self.alpha = alpha
+        self.limit = limit
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_glu, x_linear = x[..., ::2], x[..., 1::2]
+        # Clamp the input values
+        limit = self.limit
+        x_glu = x_glu.clamp(min=None, max=limit)
+        x_linear = x_linear.clamp(min=-limit, max=limit)
+        out_glu = x_glu * torch.sigmoid(self.alpha * x_glu)
+        # Note we add an extra bias of 1 to the linear layer
+        return out_glu * (x_linear + 1)
+
+
 class FeedFoward(nn.Module):
-    def __init__(self, n_embd: int) -> None:
+    def __init__(self, n_embd: int, swiglu_alpha: float, swiglu_limit: float) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
-            nn.ReLU(),
-            nn.Linear(4 * n_embd, n_embd),
+            SwiGLU(alpha=swiglu_alpha, limit=swiglu_limit),
+            nn.Linear(2 * n_embd, n_embd),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -104,13 +121,22 @@ class FeedFoward(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, n_embd: int, n_head: int, rmsnorm_eps: float) -> None:
+    def __init__(
+        self,
+        n_embd: int,
+        n_head: int,
+        rmsnorm_eps: float,
+        swiglu_alpha: float,
+        swiglu_limit: float,
+    ) -> None:
         super().__init__()
         self.sa = MultiHeadAttention(
             n_embd=n_embd,
             n_head=n_head,
         )
-        self.ffwd = FeedFoward(n_embd=n_embd)
+        self.ffwd = FeedFoward(
+            n_embd=n_embd, swiglu_alpha=swiglu_alpha, swiglu_limit=swiglu_limit
+        )
         self.norm_1 = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)
         self.norm_2 = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)
 
@@ -130,12 +156,20 @@ class GPT(nn.Module):
         n_layer: int = 4,
         rmsnorm_eps: float = 1e-5,
         rope_theta: float = 10000,
+        swiglu_alpha=1.702,
+        swiglu_limit=7.0,
     ) -> None:
         super().__init__()
         self.block_size = block_size
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.blocks = nn.ModuleList(
-            Block(n_embd=n_embd, n_head=n_head, rmsnorm_eps=rmsnorm_eps)
+            Block(
+                n_embd=n_embd,
+                n_head=n_head,
+                rmsnorm_eps=rmsnorm_eps,
+                swiglu_alpha=swiglu_alpha,
+                swiglu_limit=swiglu_limit,
+            )
             for _ in range(n_layer)
         )
         self.norm = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)

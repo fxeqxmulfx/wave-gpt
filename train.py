@@ -183,6 +183,7 @@ def train(
 # UPD bias=False in lm_head: val_loss=1.82 train_time=28.67
 # ADD RMSNorm: val_loss=1.82 train_time=28.0
 # ADD RoPE: val_loss=1.76 train_time=28.67
+# ADD SwiGLU: val_loss=1.74 train_time=29.67
 
 
 def main() -> None:
