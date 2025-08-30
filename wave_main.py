@@ -6,17 +6,28 @@ from train import train
 def encode(
     inp: torch.Tensor, vocab_size: int
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    assert vocab_size % 2 == 0
+    _vocab_size = vocab_size - 2
     diff = torch.diff(inp, dim=0)
     max_diff, _ = torch.max(torch.abs(diff), dim=0)
-    scale = vocab_size / max_diff / 2
-    result = (diff * scale).to(torch.int64) + vocab_size // 2
+    scale = _vocab_size / max_diff / 2
+    scaled_diff = diff * scale
+    residual = scaled_diff - scaled_diff.to(torch.int64)
+    residual = torch.diff(
+        torch.floor(torch.cumsum(residual, dim=0)).to(torch.int64),
+        dim=0,
+        prepend=torch.zeros(residual[:1].shape, dtype=torch.int64),
+    )
+    result = scaled_diff.to(torch.int64) + _vocab_size // 2 + residual
     return inp[:1], scale, result
 
 
 def decode(
     start: torch.Tensor, scale: torch.Tensor, inp: torch.Tensor, vocab_size: int
 ) -> torch.Tensor:
-    diff = (inp - vocab_size // 2) / scale
+    assert vocab_size % 2 == 0
+    _vocab_size = vocab_size - 2
+    diff = (inp - _vocab_size // 2) / scale
     result = torch.concat((start, diff), dim=0).cumsum(dim=0)
     return result
 
@@ -27,6 +38,7 @@ def mae(x: torch.Tensor, y: torch.Tensor) -> float:
 
 
 # ADD wave encoder decoder: val_loss=0.18 train_time=27.0 MAE=0.0061
+# FIX wave encoder decoder: val_loss=0.19 train_time=27.0 MAE=0.0041
 
 
 def main() -> None:
@@ -55,7 +67,7 @@ def main() -> None:
     )
     start, scale, embedding = encode(inp, vocab_size)
     torch.testing.assert_close(
-        decode(start, scale, embedding, vocab_size), inp, rtol=1, atol=0.5
+        decode(start, scale, embedding, vocab_size), inp, rtol=1, atol=0.0076
     )
     n = 3
     val_loss_array = torch.zeros((n,))
