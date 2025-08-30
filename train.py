@@ -129,6 +129,8 @@ def train(
     eval_interval: int,
     eval_iters: int,
     batch_size: int,
+    rmsnorm_eps: float,
+    rope_theta: float,
 ) -> tuple[GPT, float, int]:
     train_data, val_data = split_data(embedding)
     model = GPT(
@@ -137,6 +139,8 @@ def train(
         block_size=block_size,
         n_head=n_head,
         n_layer=n_layer,
+        rmsnorm_eps=rmsnorm_eps,
+        rope_theta=rope_theta,
     )
     torch.set_float32_matmul_precision("high")
     model.to(device).compile(mode="max-autotune-no-cudagraphs")
@@ -178,6 +182,7 @@ def train(
 # ADD flash-attention: val_loss=1.8 train_time=26.67
 # UPD bias=False in lm_head: val_loss=1.82 train_time=28.67
 # ADD RMSNorm: val_loss=1.82 train_time=28.0
+# ADD RoPE: val_loss=1.76 train_time=28.67
 
 
 def main() -> None:
@@ -190,6 +195,8 @@ def main() -> None:
     eval_interval = 5_000
     eval_iters = 200
     batch_size = 16
+    rmsnorm_eps = 1e-5
+    rope_theta = 10000
     device = "cuda" if torch.cuda.is_available() else "cpu"
     text = load_data()
     chars = get_chars(text)
@@ -213,6 +220,8 @@ def main() -> None:
         eval_interval=eval_interval,
         eval_iters=eval_iters,
         batch_size=batch_size,
+        rmsnorm_eps=rmsnorm_eps,
+        rope_theta=rope_theta,
     )
     val_loss_array[0] = val_loss
     train_time_array[0] = train_time
@@ -230,6 +239,8 @@ def main() -> None:
             eval_interval=eval_interval,
             eval_iters=eval_iters,
             batch_size=batch_size,
+            rmsnorm_eps=rmsnorm_eps,
+            rope_theta=rope_theta,
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time
