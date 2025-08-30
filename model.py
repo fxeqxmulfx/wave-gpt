@@ -3,6 +3,24 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
+class RMSNorm(torch.nn.Module):
+    def __init__(
+        self, num_features: int, eps: float = 1e-05, device: torch.device | None = None
+    ) -> None:
+        super().__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.scale = torch.nn.Parameter(
+            torch.ones(num_features, device=device, dtype=torch.float32)
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        assert x.shape[-1] == self.num_features
+        t, dtype = x.float(), x.dtype
+        t = t * torch.rsqrt(torch.mean(t**2, dim=-1, keepdim=True) + self.eps)
+        return (t * self.scale).to(dtype)
+
+
 class MultiHeadAttention(nn.Module):
     def __init__(self, n_embd: int, n_head: int) -> None:
         super().__init__()
@@ -67,12 +85,12 @@ class Block(nn.Module):
             n_head=n_head,
         )
         self.ffwd = FeedFoward(n_embd=n_embd)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
+        self.norm_1 = RMSNorm(n_embd)
+        self.norm_2 = RMSNorm(n_embd)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.sa(self.ln1(x))
-        x = x + self.ffwd(self.ln2(x))
+        x = x + self.sa(self.norm_1(x))
+        x = x + self.ffwd(self.norm_2(x))
         return x
 
 
@@ -92,7 +110,7 @@ class GPT(nn.Module):
         self.blocks = nn.Sequential(
             *tuple(Block(n_embd=n_embd, n_head=n_head) for _ in range(n_layer))
         )
-        self.ln_f = nn.LayerNorm(n_embd)
+        self.norm = RMSNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
         self.register_buffer("position_embedding_idx", torch.arange(block_size))
 
@@ -106,7 +124,7 @@ class GPT(nn.Module):
         )  # (T, C)
         x = tok_emb + pos_emb  # (B, T, C)
         x = self.blocks(x)  # (B, T, C)
-        x = self.ln_f(x)  # (B, T, C)
+        x = self.norm(x)  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, vocab_size)
         loss = None
         if targets is not None:

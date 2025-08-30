@@ -177,6 +177,7 @@ def train(
 # UPD eval_interval = 5_000: val_loss=1.82 train_time=40.67
 # ADD flash-attention: val_loss=1.8 train_time=26.67
 # UPD bias=False in lm_head: val_loss=1.82 train_time=28.67
+# ADD RMSNorm: val_loss=1.82 train_time=28.0
 
 
 def main() -> None:
