@@ -138,6 +138,7 @@ def train(
         n_head=n_head,
         n_layer=n_layer,
     )
+    torch.set_float32_matmul_precision("high")
     model.to(device).compile(mode="max-autotune-no-cudagraphs")
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     start = datetime.now()
@@ -174,6 +175,7 @@ def train(
 # INIT: val_loss=1.82 train_time=188
 # ADD torch.compile: val_loss=1.83 train_time=49.67
 # UPD eval_interval = 5_000: val_loss=1.82 train_time=40.67
+# ADD flash-attention: val_loss=1.8 train_time=26.67
 
 
 def main() -> None:

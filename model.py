@@ -3,48 +3,46 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
-class Head(nn.Module):
-    def __init__(self, n_embd: int, block_size: int, head_size: int) -> None:
-        super().__init__()
-        self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.query = nn.Linear(n_embd, head_size, bias=False)
-        self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, T, C = x.shape
-        k = self.key(x)  # (B, T, C)
-        q = self.query(x)  # (B, T, C)
-        wei = q @ k.transpose(-2, -1) * C**-0.5  # (B, T, C) @ (B, C, T) -> (B, T, T)
-        wei = wei.masked_fill(
-            self.tril[:T, :T] == 0,  # pyright: ignore[reportIndexIssue]
-            float("-inf"),
-        )  # (B, T, T)
-        wei = F.softmax(wei, dim=-1)  # (B, T, T)
-        v = self.value(x)  # (B, T, C)
-        result = wei @ v  # (B, T, T) @ (B, T, C) -> (B, T, C)
-        return result
-
-
 class MultiHeadAttention(nn.Module):
-    def __init__(self, n_embd: int, block_size: int, n_head: int) -> None:
+    def __init__(self, n_embd: int, n_head: int) -> None:
         super().__init__()
         assert n_embd % n_head == 0
-        head_size = n_embd // n_head
-        self.heads = nn.ModuleList(
-            Head(
-                n_embd=n_embd,
-                block_size=block_size,
-                head_size=head_size,
-            )
-            for _ in range(n_head)
-        )
-        self.proj = nn.Linear(n_embd, n_embd)
+        self.n_embd = n_embd
+        self.n_head = n_head
+        # key, query, value projections for all heads, but in a batch
+        self.c_attn = nn.Linear(n_embd, 3 * n_embd)
+        # output projection
+        self.c_proj = nn.Linear(n_embd, n_embd)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        result = torch.cat(tuple(h(x) for h in self.heads), dim=-1)
-        result = self.proj(result)
-        return result
+        B, T, C = (
+            x.size()
+        )  # batch size, sequence length, embedding dimensionality (n_embd)
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+        k = k.view(B, T, self.n_head, C // self.n_head).transpose(
+            1, 2
+        )  # (B, nh, T, hs)
+        q = q.view(B, T, self.n_head, C // self.n_head).transpose(
+            1, 2
+        )  # (B, nh, T, hs)
+        v = v.view(B, T, self.n_head, C // self.n_head).transpose(
+            1, 2
+        )  # (B, nh, T, hs)
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        # efficient attention using Flash Attention CUDA kernels
+        y = torch.nn.functional.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            is_causal=True,
+        )
+        y = (
+            y.transpose(1, 2).contiguous().view(B, T, C)
+        )  # re-assemble all head outputs side by side
+        # output projection
+        y = self.c_proj(y)
+        return y
 
 
 class FeedFoward(nn.Module):
@@ -62,11 +60,10 @@ class FeedFoward(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, n_embd: int, block_size: int, n_head: int) -> None:
+    def __init__(self, n_embd: int, n_head: int) -> None:
         super().__init__()
         self.sa = MultiHeadAttention(
             n_embd=n_embd,
-            block_size=block_size,
             n_head=n_head,
         )
         self.ffwd = FeedFoward(n_embd=n_embd)
@@ -93,22 +90,19 @@ class GPT(nn.Module):
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
         self.blocks = nn.Sequential(
-            *tuple(
-                Block(n_embd=n_embd, block_size=block_size, n_head=n_head)
-                for _ in range(n_layer)
-            )
+            *tuple(Block(n_embd=n_embd, n_head=n_head) for _ in range(n_layer))
         )
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.register_buffer("position_embedding_idx", torch.arange(block_size))
 
     def forward(
         self, idx: torch.Tensor, targets: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
-        device = idx.device
         B, T = idx.shape
         tok_emb = self.token_embedding_table(idx)  # (B, T, C)
         pos_emb = self.position_embedding_table(
-            torch.arange(T, device=device),
+            self.position_embedding_idx[:T],  # pyright: ignore[reportIndexIssue]
         )  # (T, C)
         x = tok_emb + pos_emb  # (B, T, C)
         x = self.blocks(x)  # (B, T, C)
