@@ -6,10 +6,13 @@ from train import train
 def encode(
     inp: torch.Tensor, vocab_size: int
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    assert vocab_size % 2 == 0
+    assert vocab_size % 2 == 0 and vocab_size >= 4
     diff = torch.diff(inp, dim=0)
     max_diff, _ = torch.max(torch.abs(diff), dim=0)
-    scale = (vocab_size - 2) / max_diff / 2
+    scale = torch.ones(max_diff.shape, dtype=max_diff.dtype)
+    _filter = torch.abs(max_diff) > torch.finfo(max_diff.dtype).eps
+    _scale = (vocab_size - 2) / max_diff[_filter] / 2
+    scale[_filter] = _scale
     scaled_diff = diff * scale
     residual = scaled_diff - scaled_diff.to(torch.int64)
     residual = torch.diff(
