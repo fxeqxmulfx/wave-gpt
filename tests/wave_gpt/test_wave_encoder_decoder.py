@@ -1,5 +1,5 @@
 import torch
-from src.wave_gpt.wave_decoder_encoder import (
+from wave_gpt.wave_decoder_encoder import (
     encode,
     decode,
     get_diff_domain_of_definition,

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from tqdm.autonotebook import tqdm
 
-from model import GPT
+from wave_gpt.model import GPT
 
 
 def split_data(

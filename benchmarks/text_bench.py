@@ -1,8 +1,8 @@
 from typing import Iterable
 import torch
 
-from model import GPT
-from train import train
+from wave_gpt.model import GPT
+from wave_gpt.train import train
 
 
 def load_data() -> str:

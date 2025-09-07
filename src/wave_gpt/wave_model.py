@@ -1,9 +1,9 @@
 import pandas as pd
 import torch
 
-from model import GPT
-from train import train
-from wave_decoder_encoder import decode, encode
+from wave_gpt.model import GPT
+from wave_gpt.train import train
+from wave_gpt.wave_decoder_encoder import decode, encode
 
 
 class WaveGPT:

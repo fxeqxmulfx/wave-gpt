@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wave_decoder_encoder import get_diff_domain_of_definition
-from wave_model import WaveGPT
+from wave_gpt.wave_decoder_encoder import get_diff_domain_of_definition
+from wave_gpt.wave_model import WaveGPT
 
 
 def mae(x: np.ndarray, y: np.ndarray) -> float:
