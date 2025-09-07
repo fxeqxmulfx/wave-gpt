@@ -1,21 +1,21 @@
+import numpy as np
+import pandas as pd
 import torch
 
-from model import GPT
-from train import train
-
-from wave_decoder_encoder import encode, decode
+from wave_decoder_encoder import get_diff_domain_of_definition
+from wave_model import WaveGPT
 
 
-def mae(x: torch.Tensor, y: torch.Tensor) -> float:
-    result = torch.mean(torch.abs(x - y), dim=0)
-    return float(torch.mean(result))
+def mae(x: np.ndarray, y: np.ndarray) -> float:
+    result = np.mean(np.abs(x - y), axis=0)
+    return float(np.mean(result))
 
 
 # ADD wave encoder decoder: val_loss=0.18 train_time=27.0 MAE=0.0061
 # FIX wave encoder decoder: val_loss=0.19 train_time=27.0 MAE=0.0041
 # UPD use round instead floor: val_loss=0.19 train_time=26.67 MAE=0.0016
 # FIX shift in wave encoder decoder: val_loss=0.19 train_time=28.0 MAE=0.0016
-# CLR train: val_loss=0.19 train_time=34.67 MAE=0.0027
+# CLR train: val_loss=0.19 train_time=33.67 MAE=0.0024
 
 
 def main() -> None:
@@ -34,23 +34,28 @@ def main() -> None:
     rmsnorm_eps = 1e-5
     rope_theta = 10000
     vocab_size = 256
+    swiglu_alpha = 1.702
+    swiglu_limit = 7.0
+    train_part = 0.9
+    use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
     idx = torch.arange(1_000_000)
-    inp = torch.stack(
-        (
-            torch.sin(idx),
-            torch.cos(idx),
-        ),
-        dim=1,
+    inp = pd.DataFrame(
+        {
+            "sin": torch.sin(idx),
+            "cos": torch.cos(idx),
+        }
     )
-    start, scale, encoded_data = encode(inp, vocab_size)
+    diff_domain_of_definition = get_diff_domain_of_definition(
+        torch.from_numpy(inp.to_numpy())
+    )
     n = 3
     val_loss_array = torch.zeros((n,))
     train_time_array = torch.zeros((n,))
     mae_loss_array = torch.zeros((n,))
-    _encoded_data = tuple(encoded_data.reshape(-1).tolist())
     for i in range(n):
-        model = GPT(
+        model = WaveGPT(
+            device=device,
             vocab_size=vocab_size,
             n_embd=n_embd,
             block_size=block_size,
@@ -58,11 +63,12 @@ def main() -> None:
             n_layer=n_layer,
             rmsnorm_eps=rmsnorm_eps,
             rope_theta=rope_theta,
+            swiglu_alpha=swiglu_alpha,
+            swiglu_limit=swiglu_limit,
         )
-        model.to(device).compile(mode="max-autotune-no-cudagraphs")
-        val_loss, train_time = train(
-            mut_model=model,
-            encoded_data=tuple(encoded_data.reshape(-1).tolist()),
+        val_loss, train_time = model.train(
+            df=inp,
+            diff_domain_of_definition=diff_domain_of_definition,
             learning_rate=learning_rate,
             betas=betas,
             weight_decay=weight_decay,
@@ -70,19 +76,17 @@ def main() -> None:
             eval_interval=eval_interval,
             eval_iters=eval_iters,
             batch_size=batch_size,
+            train_part=train_part,
+            use_tqdm=use_tqdm,
         )
-        context = torch.tensor((_encoded_data[:8],), dtype=torch.int64, device=device)
-        decoded = decode(
-            start,
-            scale,
-            model.generate(context, max_new_tokens=22)[0]
-            .reshape(-1, encoded_data.shape[1])
-            .to(device="cpu"),
-            vocab_size=vocab_size,
+        result_df = model.predict(
+            inp[-16:-8],
+            diff_domain_of_definition=diff_domain_of_definition,
+            max_new_points=8,
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time
-        mae_loss_array[i] = mae(inp[:16], decoded)
+        mae_loss_array[i] = mae(inp[-8:].to_numpy(), result_df[-8:].to_numpy())
     val_loss = float(torch.mean(val_loss_array))
     train_time = float(torch.mean(train_time_array))
     mae_loss = float(torch.mean(mae_loss_array))

@@ -143,11 +143,12 @@ class GPT(nn.Module):
         n_layer: int = 4,
         rmsnorm_eps: float = 1e-5,
         rope_theta: float = 10000,
-        swiglu_alpha=1.702,
-        swiglu_limit=7.0,
+        swiglu_alpha: float = 1.702,
+        swiglu_limit: float = 7.0,
     ) -> None:
         super().__init__()
         self.block_size = block_size
+        self.vocab_size = vocab_size
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.blocks = nn.ModuleList(
             Block(

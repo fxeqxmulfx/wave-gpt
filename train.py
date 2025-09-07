@@ -3,7 +3,7 @@ from datetime import datetime
 import schedulefree
 import torch
 import torch.nn as nn
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 from model import GPT
 
@@ -88,6 +88,7 @@ def train(
     eval_iters: int = 200,
     batch_size: int = 16,
     train_part: float = 0.9,
+    use_tqdm: bool = True,
 ) -> tuple[float, int]:
     device = next(mut_model.parameters()).device.type
     train_data, val_data = split_data(encoded_data, train_part)
@@ -98,7 +99,10 @@ def train(
         weight_decay=weight_decay,
     )
     start = datetime.now()
-    pbar = tqdm(range(max_iters))
+    if use_tqdm:
+        pbar = tqdm(range(max_iters))
+    else:
+        pbar = range(max_iters)
     val_loss = torch.inf
     mut_model.train()
     optimizer.train()
@@ -116,9 +120,13 @@ def train(
             )
             mut_model.train()
             optimizer.train()
-            pbar.set_description(
+            status = (
                 f"step {iter}: train loss {train_loss:.4f}, val loss {val_loss:.4f}"
             )
+            if isinstance(pbar, tqdm):
+                pbar.set_description(status)
+            else:
+                print(status)
         xb, yb = get_batch(
             data=train_data,
             batch_size=batch_size,
@@ -129,7 +137,7 @@ def train(
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
-    train_time = (datetime.now() - start).seconds
+    train_time_s = (datetime.now() - start).seconds
     mut_model.eval()
-    result = float(val_loss), train_time
+    result = float(val_loss), train_time_s
     return result

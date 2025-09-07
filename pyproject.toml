@@ -8,6 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.13"
 dependencies = [
     "numpy>=2.3.2",
+    "pandas>=2.3.2",
     "schedulefree>=1.4.1",
     "torch>=2.8.0",
     "tqdm>=4.67.1",

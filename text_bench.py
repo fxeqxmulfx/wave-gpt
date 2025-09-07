@@ -68,6 +68,10 @@ def main() -> None:
     batch_size = 16
     rmsnorm_eps = 1e-5
     rope_theta = 10000
+    swiglu_alpha = 1.702
+    swiglu_limit = 7.0
+    train_part = 0.9
+    use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
     text = load_data()
     chars = get_chars(text)
@@ -88,6 +92,8 @@ def main() -> None:
             n_layer=n_layer,
             rmsnorm_eps=rmsnorm_eps,
             rope_theta=rope_theta,
+            swiglu_alpha=swiglu_alpha,
+            swiglu_limit=swiglu_limit,
         )
         model.to(device).compile(mode="max-autotune-no-cudagraphs")
         val_loss, train_time = train(
@@ -100,6 +106,8 @@ def main() -> None:
             eval_interval=eval_interval,
             eval_iters=eval_iters,
             batch_size=batch_size,
+            train_part=train_part,
+            use_tqdm=use_tqdm,
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time
