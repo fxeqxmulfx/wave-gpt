@@ -33,7 +33,7 @@ class WaveGPT:
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
         )
-        model.to(device).compile(mode="max-autotune-no-cudagraphs")
+        model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
         model.eval()
         self.model = model
 
@@ -50,6 +50,7 @@ class WaveGPT:
         batch_size: int = 16,
         train_part: float = 0.9,
         use_tqdm: bool = True,
+        use_random_coeff: bool = False,
     ) -> tuple[float, int]:
         _, _, encoded_data = encode(
             torch.from_numpy(df.to_numpy()),
@@ -69,6 +70,7 @@ class WaveGPT:
             batch_size=batch_size,
             train_part=train_part,
             use_tqdm=use_tqdm,
+            use_random_coeff=use_random_coeff,
         )
         result = val_loss, train_time_s
         return result

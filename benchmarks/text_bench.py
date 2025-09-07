@@ -95,7 +95,7 @@ def main() -> None:
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
         )
-        model.to(device).compile(mode="max-autotune-no-cudagraphs")
+        model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
         val_loss, train_time = train(
             mut_model=model,
             encoded_data=encoded_text,
