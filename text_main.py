@@ -1,6 +1,7 @@
 from typing import Iterable
 import torch
 
+from model import GPT
 from train import train
 
 
@@ -53,6 +54,7 @@ class Decoder:
 
 
 def main() -> None:
+    torch.set_float32_matmul_precision("high")
     n_embd = 64
     block_size = 32
     n_head = 4
@@ -76,35 +78,21 @@ def main() -> None:
     n = 3
     val_loss_array = torch.zeros((n,))
     train_time_array = torch.zeros((n,))
-    model, val_loss, train_time = train(
-        embedding=encoded_text,
-        vocab_size=encoder.vocab_size,
-        device=device,
-        n_embd=n_embd,
-        block_size=block_size,
-        n_head=n_head,
-        n_layer=n_layer,
-        learning_rate=learning_rate,
-        betas=betas,
-        weight_decay=weight_decay,
-        max_iters=max_iters,
-        eval_interval=eval_interval,
-        eval_iters=eval_iters,
-        batch_size=batch_size,
-        rmsnorm_eps=rmsnorm_eps,
-        rope_theta=rope_theta,
-    )
-    val_loss_array[0] = val_loss
-    train_time_array[0] = train_time
-    for i in range(1, n):
-        _, val_loss, train_time = train(
-            embedding=encoded_text,
+    model: GPT | None = None
+    for i in range(n):
+        model = GPT(
             vocab_size=encoder.vocab_size,
-            device=device,
             n_embd=n_embd,
             block_size=block_size,
             n_head=n_head,
             n_layer=n_layer,
+            rmsnorm_eps=rmsnorm_eps,
+            rope_theta=rope_theta,
+        )
+        model.to(device).compile(mode="max-autotune-no-cudagraphs")
+        val_loss, train_time = train(
+            mut_model=model,
+            encoded_data=encoded_text,
             learning_rate=learning_rate,
             betas=betas,
             weight_decay=weight_decay,
@@ -112,8 +100,6 @@ def main() -> None:
             eval_interval=eval_interval,
             eval_iters=eval_iters,
             batch_size=batch_size,
-            rmsnorm_eps=rmsnorm_eps,
-            rope_theta=rope_theta,
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time
@@ -121,7 +107,8 @@ def main() -> None:
     train_time = float(torch.mean(train_time_array))
     print(f"val_loss={round(val_loss, 2)} train_time={round(train_time, 2)}")
     context = torch.zeros((1, 1), dtype=torch.int64, device=device)
-    print(decoder.decode(model.generate(context, max_new_tokens=2000)[0].tolist()))
+    if model is not None:
+        print(decoder.decode(model.generate(context, max_new_tokens=2000)[0].tolist()))
 
 
 if __name__ == "__main__":

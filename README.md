@@ -1,3 +1,5 @@
+# wave-gpt
+
 Limitation:
 $$
 \sup_{x \in \mathbb{R}^n} \| \nabla f(x) \| _\infty < \infty

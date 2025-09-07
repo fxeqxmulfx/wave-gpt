@@ -17,32 +17,6 @@ class RMSNorm(torch.nn.Module):
         return (t * self.scale).to(dtype)
 
 
-def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
-    """Precomputes the frequency cis."""
-    freqs = 1.0 / (
-        theta ** (torch.arange(0, dim, 2, dtype=torch.float32)[: (dim // 2)] / dim)
-    )
-    t = torch.arange(end, device=freqs.device, dtype=torch.float32)
-    freqs = torch.outer(t, freqs)
-    freqs_cis = torch.polar(
-        torch.ones_like(freqs, dtype=torch.float32), freqs
-    )  # complex64
-    return freqs_cis
-
-
-def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
-    """Applies the rotary embedding to the query and key tensors."""
-    x_ = torch.view_as_complex(
-        torch.stack(torch.chunk(x.transpose(1, 2).float(), 2, dim=-1), dim=-1)
-    )
-    x_out = torch.view_as_real(x_ * freqs_cis).type_as(x)
-    x_out = torch.cat(torch.chunk(x_out, 2, dim=-1), dim=-2)
-    x_out = x_out.reshape(x_out.shape[0], x_out.shape[1], x_out.shape[2], -1).transpose(
-        1, 2
-    )
-    return x_out
-
-
 class MultiHeadAttention(nn.Module):
     def __init__(self, n_embd: int, n_head: int) -> None:
         super().__init__()
@@ -53,6 +27,19 @@ class MultiHeadAttention(nn.Module):
         self.c_attn = nn.Linear(n_embd, 3 * n_embd)
         # output projection
         self.c_proj = nn.Linear(n_embd, n_embd)
+
+    @staticmethod
+    def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
+        """Applies the rotary embedding to the query and key tensors."""
+        x_ = torch.view_as_complex(
+            torch.stack(torch.chunk(x.transpose(1, 2).float(), 2, dim=-1), dim=-1)
+        )
+        x_out = torch.view_as_real(x_ * freqs_cis).type_as(x)
+        x_out = torch.cat(torch.chunk(x_out, 2, dim=-1), dim=-2)
+        x_out = x_out.reshape(
+            x_out.shape[0], x_out.shape[1], x_out.shape[2], -1
+        ).transpose(1, 2)
+        return x_out
 
     def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
         B, T, C = (
@@ -71,8 +58,8 @@ class MultiHeadAttention(nn.Module):
         )  # (B, nh, T, hs)
         # RoPE
         freqs_cis = freqs_cis.unsqueeze(0).unsqueeze(2)
-        k = apply_rotary_emb(k, freqs_cis)
-        q = apply_rotary_emb(q, freqs_cis)
+        k = self.apply_rotary_emb(k, freqs_cis)
+        q = self.apply_rotary_emb(q, freqs_cis)
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         # efficient attention using Flash Attention CUDA kernels
         y = torch.nn.functional.scaled_dot_product_attention(
@@ -176,8 +163,23 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
         self.register_buffer(
             "freqs_cis",
-            precompute_freqs_cis(n_embd // n_head, block_size * 2, theta=rope_theta),
+            self.precompute_freqs_cis(
+                n_embd // n_head, block_size * 2, theta=rope_theta
+            ),
         )
+
+    @staticmethod
+    def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
+        """Precomputes the frequency cis."""
+        freqs = 1.0 / (
+            theta ** (torch.arange(0, dim, 2, dtype=torch.float32)[: (dim // 2)] / dim)
+        )
+        t = torch.arange(end, device=freqs.device, dtype=torch.float32)
+        freqs = torch.outer(t, freqs)
+        freqs_cis = torch.polar(
+            torch.ones_like(freqs, dtype=torch.float32), freqs
+        )  # complex64
+        return freqs_cis
 
     def forward(
         self, idx: torch.Tensor, targets: torch.Tensor | None = None

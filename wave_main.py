@@ -1,36 +1,9 @@
 import torch
 
+from model import GPT
 from train import train
 
-
-def encode(
-    inp: torch.Tensor, vocab_size: int
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    assert vocab_size % 2 == 0 and vocab_size >= 4
-    diff = torch.diff(inp, dim=0)
-    max_diff, _ = torch.max(torch.abs(diff), dim=0)
-    scale = torch.ones(max_diff.shape, dtype=max_diff.dtype)
-    _filter = torch.abs(max_diff) > torch.finfo(max_diff.dtype).eps
-    _scale = (vocab_size - 2) / max_diff[_filter] / 2
-    scale[_filter] = _scale
-    scaled_diff = diff * scale
-    residual = scaled_diff - scaled_diff.to(torch.int64)
-    residual = torch.diff(
-        torch.round(torch.cumsum(residual, dim=0)).to(torch.int64),
-        dim=0,
-        prepend=torch.zeros(residual[:1].shape, dtype=torch.int64),
-    )
-    result = scaled_diff.to(torch.int64) + vocab_size // 2 + residual
-    return inp[:1], scale, result
-
-
-def decode(
-    start: torch.Tensor, scale: torch.Tensor, inp: torch.Tensor, vocab_size: int
-) -> torch.Tensor:
-    assert vocab_size % 2 == 0
-    diff = (inp - vocab_size // 2) / scale
-    result = torch.concat((start, diff), dim=0).cumsum(dim=0)
-    return result
+from wave_decoder_encoder import encode, decode
 
 
 def mae(x: torch.Tensor, y: torch.Tensor) -> float:
@@ -42,9 +15,11 @@ def mae(x: torch.Tensor, y: torch.Tensor) -> float:
 # FIX wave encoder decoder: val_loss=0.19 train_time=27.0 MAE=0.0041
 # UPD use round instead floor: val_loss=0.19 train_time=26.67 MAE=0.0016
 # FIX shift in wave encoder decoder: val_loss=0.19 train_time=28.0 MAE=0.0016
+# CLR train: val_loss=0.19 train_time=34.67 MAE=0.0027
 
 
 def main() -> None:
+    torch.set_float32_matmul_precision("high")
     n_embd = 64
     block_size = 32
     n_head = 4
@@ -68,44 +43,26 @@ def main() -> None:
         ),
         dim=1,
     )
-    start, scale, embedding = encode(inp, vocab_size)
-    assert torch.all((embedding < vocab_size) & (embedding >= 0))
-    torch.testing.assert_close(
-        decode(start, scale, embedding, vocab_size), inp, rtol=1, atol=0.0039
-    )
+    start, scale, encoded_data = encode(inp, vocab_size)
     n = 3
     val_loss_array = torch.zeros((n,))
     train_time_array = torch.zeros((n,))
-    _embedding = tuple(embedding.reshape(-1).tolist())
-    model, val_loss, train_time = train(
-        embedding=_embedding,
-        vocab_size=vocab_size,
-        device=device,
-        n_embd=n_embd,
-        block_size=block_size,
-        n_head=n_head,
-        n_layer=n_layer,
-        learning_rate=learning_rate,
-        betas=betas,
-        weight_decay=weight_decay,
-        max_iters=max_iters,
-        eval_interval=eval_interval,
-        eval_iters=eval_iters,
-        batch_size=batch_size,
-        rmsnorm_eps=rmsnorm_eps,
-        rope_theta=rope_theta,
-    )
-    val_loss_array[0] = val_loss
-    train_time_array[0] = train_time
-    for i in range(1, n):
-        _, val_loss, train_time = train(
-            embedding=tuple(embedding.reshape(-1).tolist()),
+    mae_loss_array = torch.zeros((n,))
+    _encoded_data = tuple(encoded_data.reshape(-1).tolist())
+    for i in range(n):
+        model = GPT(
             vocab_size=vocab_size,
-            device=device,
             n_embd=n_embd,
             block_size=block_size,
             n_head=n_head,
             n_layer=n_layer,
+            rmsnorm_eps=rmsnorm_eps,
+            rope_theta=rope_theta,
+        )
+        model.to(device).compile(mode="max-autotune-no-cudagraphs")
+        val_loss, train_time = train(
+            mut_model=model,
+            encoded_data=tuple(encoded_data.reshape(-1).tolist()),
             learning_rate=learning_rate,
             betas=betas,
             weight_decay=weight_decay,
@@ -113,24 +70,24 @@ def main() -> None:
             eval_interval=eval_interval,
             eval_iters=eval_iters,
             batch_size=batch_size,
-            rmsnorm_eps=rmsnorm_eps,
-            rope_theta=rope_theta,
+        )
+        context = torch.tensor((_encoded_data[:8],), dtype=torch.int64, device=device)
+        decoded = decode(
+            start,
+            scale,
+            model.generate(context, max_new_tokens=22)[0]
+            .reshape(-1, encoded_data.shape[1])
+            .to(device="cpu"),
+            vocab_size=vocab_size,
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time
+        mae_loss_array[i] = mae(inp[:16], decoded)
     val_loss = float(torch.mean(val_loss_array))
     train_time = float(torch.mean(train_time_array))
-    context = torch.tensor((_embedding[:8],), dtype=torch.int64, device=device)
-    decoded = decode(
-        start,
-        scale,
-        model.generate(context, max_new_tokens=22)[0]
-        .reshape(-1, embedding.shape[1])
-        .to(device="cpu"),
-        vocab_size=vocab_size,
-    )
+    mae_loss = float(torch.mean(mae_loss_array))
     print(
-        f"val_loss={round(val_loss, 2)} train_time={round(train_time, 2)} MAE={round(mae(inp[:16], decoded), 4)}"
+        f"val_loss={round(val_loss, 2)} train_time={round(train_time, 2)} MAE={round(mae_loss, 4)}"
     )
 
 

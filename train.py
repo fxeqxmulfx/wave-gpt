@@ -9,7 +9,7 @@ from model import GPT
 
 
 def split_data(
-    data: tuple[int, ...], train_part: float = 0.9
+    data: tuple[int, ...], train_part: float
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
     n = int(len(data) * train_part)
     result = data[:n], data[n:]
@@ -78,37 +78,21 @@ def estimate_loss(
 
 
 def train(
-    embedding: tuple[int, ...],
-    vocab_size: int,
-    device: str,
-    n_embd: int,
-    block_size: int,
-    n_head: int,
-    n_layer: int,
-    learning_rate: float,
-    betas: tuple[float, float],
-    weight_decay: float,
-    max_iters: int,
-    eval_interval: int,
-    eval_iters: int,
-    batch_size: int,
-    rmsnorm_eps: float,
-    rope_theta: float,
-) -> tuple[GPT, float, int]:
-    train_data, val_data = split_data(embedding)
-    model = GPT(
-        vocab_size=vocab_size,
-        n_embd=n_embd,
-        block_size=block_size,
-        n_head=n_head,
-        n_layer=n_layer,
-        rmsnorm_eps=rmsnorm_eps,
-        rope_theta=rope_theta,
-    )
-    torch.set_float32_matmul_precision("high")
-    model.to(device).compile(mode="max-autotune-no-cudagraphs")
+    mut_model: GPT,
+    encoded_data: tuple[int, ...],
+    learning_rate: float = 1e-2,
+    betas: tuple[float, float] = (0.9, 0.95),
+    weight_decay: float = 0.1,
+    max_iters: int = 5_000,
+    eval_interval: int = 5_000,
+    eval_iters: int = 200,
+    batch_size: int = 16,
+    train_part: float = 0.9,
+) -> tuple[float, int]:
+    device = next(mut_model.parameters()).device.type
+    train_data, val_data = split_data(encoded_data, train_part)
     optimizer = schedulefree.AdamWScheduleFree(
-        model.parameters(),
+        mut_model.parameters(),
         lr=learning_rate,
         betas=betas,
         weight_decay=weight_decay,
@@ -116,21 +100,21 @@ def train(
     start = datetime.now()
     pbar = tqdm(range(max_iters))
     val_loss = torch.inf
-    model.train()
+    mut_model.train()
     optimizer.train()
     for iter in pbar:
         if iter % eval_interval == 0 or iter == max_iters - 1:
-            model.eval()
+            mut_model.eval()
             optimizer.eval()
             train_loss, val_loss = estimate_loss(
-                model=model,
+                model=mut_model,
                 train_data=train_data,
                 val_data=val_data,
                 batch_size=batch_size,
-                block_size=block_size,
+                block_size=mut_model.block_size,
                 eval_iters=eval_iters,
             )
-            model.train()
+            mut_model.train()
             optimizer.train()
             pbar.set_description(
                 f"step {iter}: train loss {train_loss:.4f}, val loss {val_loss:.4f}"
@@ -138,14 +122,14 @@ def train(
         xb, yb = get_batch(
             data=train_data,
             batch_size=batch_size,
-            block_size=block_size,
+            block_size=mut_model.block_size,
             device=device,
         )
-        _, loss = model(xb, yb)
+        _, loss = mut_model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
     train_time = (datetime.now() - start).seconds
-    model.eval()
-    result = model, float(val_loss), train_time
+    mut_model.eval()
+    result = float(val_loss), train_time
     return result
