@@ -44,7 +44,7 @@ def get_batch(
     )
     x, y = x.to(device=device), y.to(device=device)
     if use_random_coeff:
-        coeff = torch.randint(low=1, high=10, size=(1,)) / 10
+        coeff = (torch.randint(low=1, high=10, size=(1,)) / 10).to(device=device)
         x = (x * coeff).to(torch.int64)
         y = (y * coeff).to(torch.int64)
     return x, y
