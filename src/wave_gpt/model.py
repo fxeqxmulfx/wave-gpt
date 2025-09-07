@@ -21,6 +21,7 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, n_embd: int, n_head: int) -> None:
         super().__init__()
         assert n_embd % n_head == 0
+        assert n_head % 2 == 0
         self.n_embd = n_embd
         self.n_head = n_head
         # key, query, value projections for all heads, but in a batch
@@ -31,15 +32,13 @@ class MultiHeadAttention(nn.Module):
     @staticmethod
     def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
         """Applies the rotary embedding to the query and key tensors."""
-        x_ = torch.view_as_complex(
-            torch.stack(torch.chunk(x.transpose(1, 2).float(), 2, dim=-1), dim=-1)
-        )
-        x_out = torch.view_as_real(x_ * freqs_cis).type_as(x)
-        x_out = torch.cat(torch.chunk(x_out, 2, dim=-1), dim=-2)
-        x_out = x_out.reshape(
-            x_out.shape[0], x_out.shape[1], x_out.shape[2], -1
-        ).transpose(1, 2)
-        return x_out
+        x_shaped = x.float().reshape(*x.shape[:-1], -1, 2)
+        x_complex = torch.view_as_complex(x_shaped)
+        x_rotated = x_complex * freqs_cis
+        x_out = torch.view_as_real(x_rotated)
+        x_out = x_out.flatten(3)
+        result = x_out.type_as(x)
+        return result
 
     def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
         B, T, C = (
@@ -57,7 +56,7 @@ class MultiHeadAttention(nn.Module):
             1, 2
         )  # (B, nh, T, hs)
         # RoPE
-        freqs_cis = freqs_cis.unsqueeze(0).unsqueeze(2)
+        freqs_cis = freqs_cis.unsqueeze(0).unsqueeze(0)
         k = self.apply_rotary_emb(k, freqs_cis)
         q = self.apply_rotary_emb(q, freqs_cis)
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
@@ -186,6 +185,7 @@ class GPT(nn.Module):
         self, idx: torch.Tensor, targets: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         B, T = idx.shape
+        assert T <= self.freqs_cis.shape[0]  # pyright: ignore[reportIndexIssue]
         x = self.token_embedding_table(idx)  # (B, T, C)
         freqs_cis = (
             self.freqs_cis[:T]  # pyright: ignore[reportIndexIssue]
