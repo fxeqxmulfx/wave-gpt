@@ -161,6 +161,7 @@ class GPT(nn.Module):
         )
         self.norm = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
+        self.lm_head.weight = self.token_embedding_table.weight
         self.register_buffer(
             "freqs_cis",
             self.precompute_freqs_cis(
