@@ -1,5 +1,9 @@
 import torch
-from src.wave_decoder_encoder import encode, decode, get_diff_domain_of_definition
+from src.wave_gpt.wave_decoder_encoder import (
+    encode,
+    decode,
+    get_diff_domain_of_definition,
+)
 
 
 def test_wave_encoder_decoder_sin_cos():
