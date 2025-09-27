@@ -71,6 +71,8 @@ def main() -> None:
     swiglu_alpha = 1.702
     swiglu_limit = 7.0
     train_part = 0.9
+    temperature = 1
+    top_p = 0.95
     use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
     text = load_data()
@@ -94,6 +96,8 @@ def main() -> None:
             rope_theta=rope_theta,
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
+            top_p=top_p,
+            temperature=temperature,
         )
         model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
         val_loss, train_time = train(

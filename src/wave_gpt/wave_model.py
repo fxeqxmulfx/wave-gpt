@@ -21,6 +21,8 @@ class WaveGPT:
         rope_theta: float = 10000,
         swiglu_alpha: float = 1.702,
         swiglu_limit: float = 7.0,
+        temperature: float = 1,
+        top_p: float = 0.95,
     ) -> None:
         model = GPT(
             vocab_size=vocab_size,
@@ -32,6 +34,8 @@ class WaveGPT:
             rope_theta=rope_theta,
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
+            temperature=temperature,
+            top_p=top_p,
         )
         model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
         model.eval()

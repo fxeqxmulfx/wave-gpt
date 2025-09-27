@@ -37,6 +37,8 @@ def main() -> None:
     swiglu_alpha = 1.702
     swiglu_limit = 7.0
     train_part = 0.9
+    temperature = 1
+    top_p = 0.95
     use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
     idx = torch.arange(1_000_000)
@@ -65,6 +67,8 @@ def main() -> None:
             rope_theta=rope_theta,
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
+            temperature=temperature,
+            top_p=top_p,
         )
         val_loss, train_time = model.train(
             df=inp,

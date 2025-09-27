@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+from wave_gpt.sampling.temperature import TemperatureSampler
+from wave_gpt.sampling.nucleus import NucleusSampler
+
 
 class RMSNorm(torch.nn.Module):
     def __init__(self, num_features: int, eps: float) -> None:
@@ -144,6 +147,8 @@ class GPT(nn.Module):
         rope_theta: float = 10000,
         swiglu_alpha: float = 1.702,
         swiglu_limit: float = 7.0,
+        temperature: float = 1,
+        top_p: float = 0.95,
     ) -> None:
         super().__init__()
         self.block_size = block_size
@@ -162,6 +167,9 @@ class GPT(nn.Module):
         self.norm = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding_table.weight
+        self.sampler = NucleusSampler(
+            p=top_p, sampler=TemperatureSampler(temperature=temperature)
+        )
         self.register_buffer(
             "freqs_cis",
             self.precompute_freqs_cis(
@@ -220,7 +228,6 @@ class GPT(nn.Module):
             idx_cond = all_tokens[:, start_slice:current_pos]
             logits, _ = self(idx_cond)
             logits = logits[:, -1]  # (B, C)
-            probs = F.softmax(logits, dim=-1)  # (B, C)
-            idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
+            idx_next = self.sampler(logits)  # (B, 1)
             all_tokens[:, current_pos] = idx_next.squeeze()
         return all_tokens
