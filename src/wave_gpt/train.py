@@ -1,11 +1,11 @@
 from datetime import datetime
 
-import schedulefree
 import torch
 import torch.nn as nn
 from tqdm.autonotebook import tqdm
 
 from wave_gpt.model import GPT
+from wave_gpt.optimizer.adamw_schedulefree import AdamWScheduleFree
 
 
 def split_data(
@@ -92,7 +92,7 @@ def train(
 ) -> tuple[float, int]:
     device = next(mut_model.parameters()).device.type
     train_data, val_data = split_data(encoded_data, train_part)
-    optimizer = schedulefree.AdamWScheduleFree(
+    optimizer = AdamWScheduleFree(
         mut_model.parameters(),
         lr=learning_rate,
         betas=betas,
