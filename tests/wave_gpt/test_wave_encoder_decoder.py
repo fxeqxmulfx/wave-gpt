@@ -282,7 +282,7 @@ def test_wave_encoder_decoder_mix():
 
 
 def test_wave_encoder_decoder_square():
-    vocab_size = 256
+    vocab_size = 4
     idx = torch.arange(1_000_000, dtype=torch.float64)
     inp = torch.stack(
         (torch.square(idx),),
