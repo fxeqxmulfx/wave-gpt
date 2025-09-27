@@ -21,7 +21,6 @@ def get_batch(
     batch_size: int,
     block_size: int,
     device: str,
-    use_random_coeff: bool,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack(
@@ -43,10 +42,6 @@ def get_batch(
         )
     )
     x, y = x.to(device=device), y.to(device=device)
-    if use_random_coeff:
-        coeff = (torch.randint(low=1, high=10, size=(1,)) / 10).to(device=device)
-        x = (x * coeff).to(torch.int64)
-        y = (y * coeff).to(torch.int64)
     return x, y
 
 
@@ -58,7 +53,6 @@ def estimate_loss(
     batch_size: int,
     block_size: int,
     eval_iters: int,
-    use_random_coeff: bool,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     device = next(model.parameters()).device.type
     train = torch.Tensor()
@@ -72,7 +66,6 @@ def estimate_loss(
                 batch_size=batch_size,
                 block_size=block_size,
                 device=device,
-                use_random_coeff=use_random_coeff,
             )
             _, loss = model(X, Y)
             losses[k] = loss.item()
@@ -96,7 +89,6 @@ def train(
     batch_size: int = 16,
     train_part: float = 0.9,
     use_tqdm: bool = True,
-    use_random_coeff: bool = False,
 ) -> tuple[float, int]:
     device = next(mut_model.parameters()).device.type
     train_data, val_data = split_data(encoded_data, train_part)
@@ -125,7 +117,6 @@ def train(
                 batch_size=batch_size,
                 block_size=mut_model.block_size,
                 eval_iters=eval_iters,
-                use_random_coeff=use_random_coeff,
             )
             mut_model.train()
             optimizer.train()
@@ -141,7 +132,6 @@ def train(
             batch_size=batch_size,
             block_size=mut_model.block_size,
             device=device,
-            use_random_coeff=use_random_coeff,
         )
         _, loss = mut_model(xb, yb)
         optimizer.zero_grad(set_to_none=True)
