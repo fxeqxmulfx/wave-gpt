@@ -2,7 +2,7 @@
 
 Limitation:
 ```math
-\exists \, M > 0 \quad \forall \mathbf{x} \in \mathbb{R}^n: \quad \|f^{(n)}(\mathbf{x})\|_{\infty} \le M
+\exists \, M >= 0 \quad \forall \mathbf{x} \in \mathbb{R}^n: \quad \|f^{(n)}(\mathbf{x})\|_{\infty} \le M
 ```
 
 Links:
