@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wave_gpt.wave_decoder_encoder import get_diff_domain_of_definition
+from wave_gpt.wave_decoder_encoder import get_domain_of_definition
 from wave_gpt.wave_model import WaveGPT
 
 
@@ -46,8 +46,8 @@ def main() -> None:
             "cos": torch.cos(idx),
         }
     )
-    diff_domain_of_definition = get_diff_domain_of_definition(
-        torch.from_numpy(inp.to_numpy())
+    domain_of_definition = get_domain_of_definition(
+        torch.from_numpy(inp.to_numpy()), order_of_derivative=1
     )
     n = 3
     val_loss_array = torch.zeros((n,))
@@ -68,7 +68,8 @@ def main() -> None:
         )
         val_loss, train_time = model.train(
             df=inp,
-            diff_domain_of_definition=diff_domain_of_definition,
+            order_of_derivative=1,
+            domain_of_definition=domain_of_definition,
             learning_rate=learning_rate,
             betas=betas,
             weight_decay=weight_decay,
@@ -80,8 +81,9 @@ def main() -> None:
             use_tqdm=use_tqdm,
         )
         result_df = model.predict(
-            inp[-16:-8],
-            diff_domain_of_definition=diff_domain_of_definition,
+            df=inp[-16:-8],
+            order_of_derivative=1,
+            domain_of_definition=domain_of_definition,
             max_new_points=8,
         )
         val_loss_array[i] = val_loss

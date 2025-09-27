@@ -40,7 +40,8 @@ class WaveGPT:
     def train(
         self,
         df: pd.DataFrame,
-        diff_domain_of_definition: torch.Tensor,
+        order_of_derivative: int,
+        domain_of_definition: torch.Tensor,
         learning_rate: float = 1e-2,
         betas: tuple[float, float] = (0.9, 0.95),
         weight_decay: float = 0.1,
@@ -52,9 +53,10 @@ class WaveGPT:
         use_tqdm: bool = True,
     ) -> tuple[float, int]:
         _, _, encoded_data = encode(
-            torch.from_numpy(df.to_numpy()),
-            self.model.vocab_size,
-            diff_domain_of_definition=diff_domain_of_definition,
+            inp=torch.from_numpy(df.to_numpy()),
+            vocab_size=self.model.vocab_size,
+            domain_of_definition=domain_of_definition,
+            order_of_derivative=order_of_derivative,
         )
         encoded_data = tuple(encoded_data.reshape(-1).tolist())
         val_loss, train_time_s = train(
@@ -77,7 +79,8 @@ class WaveGPT:
     def predict(
         self,
         df: pd.DataFrame,
-        diff_domain_of_definition: torch.Tensor,
+        order_of_derivative: int,
+        domain_of_definition: torch.Tensor,
         max_new_points: int,
     ) -> pd.DataFrame:
         columns = df.shape[1]
@@ -85,9 +88,10 @@ class WaveGPT:
         vocab_size = self.model.vocab_size
         device = next(self.model.parameters()).device.type
         start, scale, encoded_data = encode(
-            torch.from_numpy(df.to_numpy()),
-            vocab_size,
-            diff_domain_of_definition=diff_domain_of_definition,
+            inp=torch.from_numpy(df.to_numpy()),
+            vocab_size=vocab_size,
+            domain_of_definition=domain_of_definition,
+            order_of_derivative=order_of_derivative,
         )
         encoded_data = encoded_data.reshape(-1)
         context = encoded_data.unsqueeze(0).to(device=device)
@@ -100,10 +104,11 @@ class WaveGPT:
             .to(device="cpu")
         )
         decoded = decode(
-            start,
-            scale,
-            generated,
+            start=start,
+            scale=scale,
+            inp=generated,
             vocab_size=vocab_size,
+            order_of_derivative=order_of_derivative,
         )
         result = pd.DataFrame(decoded.numpy(), columns=df.columns)
         return result

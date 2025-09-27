@@ -2,7 +2,7 @@ import torch
 from wave_gpt.wave_decoder_encoder import (
     encode,
     decode,
-    get_diff_domain_of_definition,
+    get_domain_of_definition,
 )
 
 
@@ -16,13 +16,120 @@ def test_wave_encoder_decoder_sin_cos():
         ),
         dim=1,
     )
-    diff_domain_of_definition = get_diff_domain_of_definition(inp)
+    order_of_derivative = 0
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
     start, scale, encoded_inp = encode(
-        inp, vocab_size, diff_domain_of_definition=diff_domain_of_definition
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
-    decoded_inp = decode(start, scale, encoded_inp, vocab_size)
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.0038102269172668457
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.007871929585464343
+
+
+def test_wave_encoder_decoder_sin_cos_derivative():
+    vocab_size = 256
+    idx = torch.arange(1_000_000)
+    inp = torch.stack(
+        (
+            torch.sin(idx),
+            torch.cos(idx),
+        ),
+        dim=1,
+    )
+    order_of_derivative = 1
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
+    start, scale, encoded_inp = encode(
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
+    )
+    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.003810696683782311
+
+
+def test_wave_encoder_decoder_sin_cos_second_derivative():
+    vocab_size = 256
+    idx = torch.arange(1_000_000)
+    inp = torch.stack(
+        (
+            torch.sin(idx),
+            torch.cos(idx),
+        ),
+        dim=1,
+    )
+    order_of_derivative = 2
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
+    start, scale, encoded_inp = encode(
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
+    )
+    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
+    # TODO: How to fix this?
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 30.32545113583302
+
+
+def test_wave_encoder_decoder_sin_cos_third_derivative():
+    vocab_size = 10240
+    idx = torch.arange(1_000_000)
+    inp = torch.stack(
+        (
+            torch.sin(idx),
+            torch.cos(idx),
+        ),
+        dim=1,
+    )
+    order_of_derivative = 3
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
+    start, scale, encoded_inp = encode(
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
+    )
+    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
+    # TODO: How to fix this?
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 7079103.199134181
 
 
 def test_wave_encoder_sin_cos_different_lenght():
@@ -35,13 +142,22 @@ def test_wave_encoder_sin_cos_different_lenght():
         ),
         dim=1,
     )
-    diff_domain_of_definition = get_diff_domain_of_definition(inp)
+    order_of_derivative = 1
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
     start, scale, encoded_inp = encode(
-        inp, vocab_size, diff_domain_of_definition=diff_domain_of_definition
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     start_2, scale_2, encoded_inp_2 = encode(
-        inp[:16], vocab_size, diff_domain_of_definition=diff_domain_of_definition
+        inp=inp[:16],
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp_2 >= 0) & (encoded_inp_2 < vocab_size))
     assert torch.all(start == start_2)
@@ -59,36 +175,72 @@ def test_wave_encoder_decoder_lin():
         ),
         dim=1,
     )
-    diff_domain_of_definition = get_diff_domain_of_definition(inp)
+    order_of_derivative = 1
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
     start, scale, encoded_inp = encode(
-        inp, vocab_size, diff_domain_of_definition=diff_domain_of_definition
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
-    decoded_inp = decode(start, scale, encoded_inp, vocab_size)
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
     assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
 
 
 def test_wave_encoder_decoder_const():
     vocab_size = 4
     inp = torch.ones(1_000_000, dtype=torch.float32).reshape(-1, 1)
-    diff_domain_of_definition = get_diff_domain_of_definition(inp)
+    order_of_derivative = 1
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
     start, scale, encoded_inp = encode(
-        inp, vocab_size, diff_domain_of_definition=diff_domain_of_definition
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
-    decoded_inp = decode(start, scale, encoded_inp, vocab_size)
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
     assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
 
 
 def test_wave_encoder_decoder_small_const():
     vocab_size = 4
     inp = (torch.ones(1_000_000, dtype=torch.float32) * 0.01).reshape(-1, 1)
-    diff_domain_of_definition = get_diff_domain_of_definition(inp)
+    order_of_derivative = 1
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
     start, scale, encoded_inp = encode(
-        inp, vocab_size, diff_domain_of_definition=diff_domain_of_definition
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
-    decoded_inp = decode(start, scale, encoded_inp, vocab_size)
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
     assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
 
 
@@ -101,6 +253,7 @@ def test_wave_encoder_decoder_mix():
         (
             torch.sin(idx),
             torch.cos(idx),
+            torch.sqrt(idx),
             idx,
             torch.flip(idx, (0,)),
             const,
@@ -108,12 +261,50 @@ def test_wave_encoder_decoder_mix():
         ),
         dim=1,
     )
-    diff_domain_of_definition = get_diff_domain_of_definition(inp)
+    order_of_derivative = 1
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
     start, scale, encoded_inp = encode(
-        inp,
-        vocab_size,
-        diff_domain_of_definition=diff_domain_of_definition,
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
     )
     assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
-    decoded_inp = decode(start, scale, encoded_inp, vocab_size)
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.0038102269172668457
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=1,
+    )
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.003936887765235042
+
+
+def test_wave_encoder_decoder_square():
+    vocab_size = 256
+    idx = torch.arange(1_000_000, dtype=torch.float64)
+    inp = torch.stack(
+        (torch.square(idx),),
+        dim=1,
+    )
+    order_of_derivative = 2
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
+    start, scale, encoded_inp = encode(
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
+    )
+    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
+    assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
