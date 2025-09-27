@@ -7,7 +7,13 @@ def _sum(a: float, b: float) -> float:
     return math.fsum((a, b))
 
 
-custom_sum = np.vectorize(_sum, signature="(),()->()")
+_custom_sum = np.vectorize(_sum, signature="(),()->()")
+
+
+def custom_sum(a: torch.Tensor, b: int | torch.Tensor) -> torch.Tensor:
+    if isinstance(b, int):
+        return torch.from_numpy(_custom_sum(a.numpy(), b))
+    return torch.from_numpy(_custom_sum(a.numpy(), b.numpy()))
 
 
 def _cumsum(inp: np.ndarray) -> np.ndarray:
@@ -21,7 +27,11 @@ def _cumsum(inp: np.ndarray) -> np.ndarray:
     return result
 
 
-custom_cumsum = np.vectorize(_cumsum, signature="(n)->(n)")
+_custom_cumsum = np.vectorize(_cumsum, signature="(n)->(n)")
+
+
+def custom_cumsum(inp: torch.Tensor) -> torch.Tensor:
+    return torch.from_numpy(_custom_cumsum(inp.numpy()))
 
 
 def _diff(inp: np.ndarray) -> np.ndarray:
@@ -32,7 +42,11 @@ def _diff(inp: np.ndarray) -> np.ndarray:
     return result
 
 
-custom_diff = np.vectorize(_diff, signature="(n)->(m)")
+_custom_diff = np.vectorize(_diff, signature="(n)->(m)")
+
+
+def custom_diff(inp: torch.Tensor) -> torch.Tensor:
+    return torch.from_numpy(_custom_diff(inp.numpy()))
 
 
 def encode(
@@ -43,6 +57,7 @@ def encode(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     assert vocab_size % 2 == 0 and vocab_size >= 4
     assert domain_of_definition.shape[0] == inp.shape[1]
+    assert order_of_derivative >= 0
     scale = torch.ones(domain_of_definition.shape, dtype=domain_of_definition.dtype)
     _filter = domain_of_definition.abs() > torch.finfo(domain_of_definition.dtype).eps
     _scale = (vocab_size - 2) / domain_of_definition[_filter] / 2
@@ -51,18 +66,18 @@ def encode(
     start = torch.zeros((0, inp.shape[1]))
     for _ in range(order_of_derivative):
         start = torch.concat((start, diff[0].unsqueeze(0)))
-        diff = torch.from_numpy(custom_diff(diff.T).T)
+        diff = custom_diff(diff.T).T
     scaled_diff = diff * scale
     trunced_scaled_diff = scaled_diff.trunc()
-    residual = torch.from_numpy(custom_sum(scaled_diff, -trunced_scaled_diff))
-    residual = torch.from_numpy(custom_cumsum(residual.T).T)
+    residual = custom_sum(scaled_diff, -trunced_scaled_diff)
+    residual = custom_cumsum(residual.T).T
     residual = residual.round()
     residual = torch.concat(
         (torch.zeros((1, residual.shape[1]), dtype=residual.dtype), residual)
     )
-    residual = torch.from_numpy(custom_diff(residual.T).T)
-    encoded_data = torch.from_numpy(
-        custom_sum(trunced_scaled_diff + vocab_size // 2, residual)
+    residual = custom_diff(residual.T).T
+    encoded_data = custom_sum(
+        custom_sum(trunced_scaled_diff, vocab_size // 2), residual
     )
     result = start, scale, encoded_data
     return result
@@ -76,12 +91,13 @@ def decode(
     order_of_derivative: int,
 ) -> torch.Tensor:
     assert vocab_size % 2 == 0 and vocab_size >= 4
-    inp = (inp - vocab_size // 2) / scale
+    assert order_of_derivative >= 0
+    inp = custom_sum(inp, -vocab_size // 2) / scale
     result = inp
     for i in range(order_of_derivative):
         _start = start[-i - 1]
         result = torch.concat((_start.unsqueeze(0), result), dim=0)
-        result = torch.from_numpy(custom_cumsum(result.T).T)
+        result = custom_cumsum(result.T).T
     return result
 
 
@@ -89,8 +105,9 @@ def get_domain_of_definition(
     inp: torch.Tensor,
     order_of_derivative: int,
 ) -> torch.Tensor:
+    assert order_of_derivative >= 0
     diff = inp
     for _ in range(order_of_derivative):
-        diff = torch.from_numpy(custom_diff(diff.T).T)
+        diff = custom_diff(diff.T).T
     result = diff.abs().max(dim=0).values
     return result

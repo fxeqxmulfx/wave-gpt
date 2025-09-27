@@ -1,5 +1,5 @@
 import torch
-from wave_gpt.wave_decoder_encoder import (
+from wave_gpt.wave_encoder_decoder import (
     encode,
     decode,
     get_domain_of_definition,
@@ -69,8 +69,8 @@ def test_wave_encoder_decoder_sin_cos_derivative():
 
 
 def test_wave_encoder_decoder_sin_cos_second_derivative():
-    vocab_size = 256
-    idx = torch.arange(1_000_000)
+    vocab_size = 4096
+    idx = torch.arange(1_000_000, dtype=torch.float64)
     inp = torch.stack(
         (
             torch.sin(idx),
@@ -96,13 +96,12 @@ def test_wave_encoder_decoder_sin_cos_second_derivative():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    # TODO: How to fix this?
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 30.32545113583302
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.04210818189272664
 
 
 def test_wave_encoder_decoder_sin_cos_third_derivative():
-    vocab_size = 10240
-    idx = torch.arange(1_000_000)
+    vocab_size = 65536
+    idx = torch.arange(1_000_000, dtype=torch.float64)
     inp = torch.stack(
         (
             torch.sin(idx),
@@ -129,7 +128,7 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
         order_of_derivative=order_of_derivative,
     )
     # TODO: How to fix this?
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 7079103.199134181
+    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 3080.679396518382
 
 
 def test_wave_encoder_sin_cos_different_lenght():
