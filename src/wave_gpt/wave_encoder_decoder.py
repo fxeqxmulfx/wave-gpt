@@ -58,12 +58,13 @@ def encode(
     assert vocab_size % 2 == 0 and vocab_size >= 4
     assert domain_of_definition.shape[0] == inp.shape[1]
     assert order_of_derivative >= 0
+    assert inp.dtype == domain_of_definition.dtype == torch.float64
     scale = torch.ones(domain_of_definition.shape, dtype=domain_of_definition.dtype)
     _filter = domain_of_definition.abs() > torch.finfo(domain_of_definition.dtype).eps
     _scale = (vocab_size - 2) / domain_of_definition[_filter] / 2
     scale[_filter] = _scale
     diff = inp
-    start = torch.zeros((0, inp.shape[1]))
+    start = torch.zeros((0, inp.shape[1]), dtype=inp.dtype)
     for _ in range(order_of_derivative):
         start = torch.concat((start, diff[0].unsqueeze(0)))
         diff = custom_diff(diff.T).T
@@ -79,7 +80,7 @@ def encode(
     encoded_data = custom_sum(
         custom_sum(trunced_scaled_diff, vocab_size // 2), residual
     )
-    result = start, scale, encoded_data
+    result = start, scale, encoded_data.to(dtype=torch.int64)
     return result
 
 
@@ -92,6 +93,8 @@ def decode(
 ) -> torch.Tensor:
     assert vocab_size % 2 == 0 and vocab_size >= 4
     assert order_of_derivative >= 0
+    assert start.dtype == scale.dtype == torch.float64
+    assert inp.dtype == torch.int64
     inp = custom_sum(inp, -vocab_size // 2) / scale
     result = inp
     for i in range(order_of_derivative):
@@ -106,6 +109,7 @@ def get_domain_of_definition(
     order_of_derivative: int,
 ) -> torch.Tensor:
     assert order_of_derivative >= 0
+    assert inp.dtype == torch.float64
     diff = inp
     for _ in range(order_of_derivative):
         diff = custom_diff(diff.T).T
