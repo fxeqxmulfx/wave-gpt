@@ -3,7 +3,7 @@ import torch
 
 from wave_gpt.model import GPT
 from wave_gpt.train import train
-from wave_gpt.wave_decoder_encoder import decode, encode
+from wave_gpt.wave_encoder_decoder import decode, encode
 
 
 class WaveGPT:

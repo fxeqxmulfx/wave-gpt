@@ -1,6 +1,6 @@
 [project]
 name = "wave-gpt"
-version = "0.14.1"
+version = "0.14.2"
 description = "Add your description here"
 readme = "README.md"
 license = "MIT"

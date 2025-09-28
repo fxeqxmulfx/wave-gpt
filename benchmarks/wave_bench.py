@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wave_gpt.wave_decoder_encoder import get_domain_of_definition
+from wave_gpt.wave_encoder_decoder import get_domain_of_definition
 from wave_gpt.wave_model import WaveGPT
 
 
