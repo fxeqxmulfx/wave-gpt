@@ -41,7 +41,7 @@ def main() -> None:
     top_p = 0.95
     use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    idx = np.arange(1_000_000, dtype=np.float128)
+    idx = np.arange(1_000_000, dtype=np.float64)
     inp = pd.DataFrame(
         {
             "sin": np.sin(idx),
@@ -49,7 +49,7 @@ def main() -> None:
         }
     )
     domain_of_definition = get_domain_of_definition(
-        inp.to_numpy(dtype=np.float128), order_of_derivative=1
+        inp.to_numpy(dtype=np.float64), order_of_derivative=1
     )
     n = 3
     val_loss_array = torch.zeros((n,))
