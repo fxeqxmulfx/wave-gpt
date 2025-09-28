@@ -46,7 +46,7 @@ class WaveGPT:
         self,
         df: pd.DataFrame,
         order_of_derivative: int,
-        domain_of_definition: torch.Tensor,
+        domain_of_definition: np.ndarray,
         learning_rate: float = 1e-2,
         betas: tuple[float, float] = (0.9, 0.95),
         weight_decay: float = 0.1,
@@ -58,7 +58,7 @@ class WaveGPT:
         use_tqdm: bool = True,
     ) -> tuple[float, int]:
         _, _, encoded_data = encode(
-            inp=torch.from_numpy(df.to_numpy(dtype=np.float64)),
+            inp=df.to_numpy(dtype=np.float128),
             vocab_size=self.model.vocab_size,
             domain_of_definition=domain_of_definition,
             order_of_derivative=order_of_derivative,
@@ -85,7 +85,7 @@ class WaveGPT:
         self,
         df: pd.DataFrame,
         order_of_derivative: int,
-        domain_of_definition: torch.Tensor,
+        domain_of_definition: np.ndarray,
         max_new_points: int,
     ) -> pd.DataFrame:
         columns = df.shape[1]
@@ -93,20 +93,21 @@ class WaveGPT:
         vocab_size = self.model.vocab_size
         device = next(self.model.parameters()).device.type
         start, scale, encoded_data = encode(
-            inp=torch.from_numpy(df.to_numpy(dtype=np.float64)),
+            inp=df.to_numpy(dtype=np.float128),
             vocab_size=vocab_size,
             domain_of_definition=domain_of_definition,
             order_of_derivative=order_of_derivative,
         )
-        encoded_data = encoded_data.reshape(-1)
-        context = encoded_data.unsqueeze(0).to(device=device)
+        encoded_data = np.expand_dims(encoded_data.reshape(-1), axis=0)
+        context = torch.from_numpy(encoded_data).to(device=device)
         generated = (
             self.model.generate(
                 context,
                 max_new_tokens=max_new_points * columns,
-            )[0]
+            )
+            .cpu()
+            .numpy()[0]
             .reshape(-1, columns)
-            .to(device="cpu")
         )
         decoded = decode(
             start=start,
@@ -115,7 +116,7 @@ class WaveGPT:
             vocab_size=vocab_size,
             order_of_derivative=order_of_derivative,
         )
-        result = pd.DataFrame(decoded.numpy(), columns=df.columns)
+        result = pd.DataFrame(decoded, columns=df.columns)
         return result
 
     def save(self, path: str = "wave-gpt.bin") -> None:

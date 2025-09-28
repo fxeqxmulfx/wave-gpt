@@ -1,4 +1,4 @@
-import torch
+import numpy as np
 from wave_gpt.wave_encoder_decoder import (
     encode,
     decode,
@@ -8,13 +8,13 @@ from wave_gpt.wave_encoder_decoder import (
 
 def test_wave_encoder_decoder_sin_cos():
     vocab_size = 256
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
-            torch.sin(idx),
-            torch.cos(idx),
+            np.sin(idx),
+            np.cos(idx),
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 0
     domain_of_definition = get_domain_of_definition(
@@ -26,7 +26,7 @@ def test_wave_encoder_decoder_sin_cos():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -34,18 +34,18 @@ def test_wave_encoder_decoder_sin_cos():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.007873033861999945
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.007873033862000016
 
 
 def test_wave_encoder_decoder_sin_cos_derivative():
     vocab_size = 256
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
-            torch.sin(idx),
-            torch.cos(idx),
+            np.sin(idx),
+            np.cos(idx),
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
@@ -57,7 +57,7 @@ def test_wave_encoder_decoder_sin_cos_derivative():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -65,18 +65,18 @@ def test_wave_encoder_decoder_sin_cos_derivative():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.00377500359439803
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.0037750035940551843
 
 
 def test_wave_encoder_decoder_sin_cos_second_derivative():
     vocab_size = 4096
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
-            torch.sin(idx),
-            torch.cos(idx),
+            np.sin(idx),
+            np.cos(idx),
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 2
     domain_of_definition = get_domain_of_definition(
@@ -88,7 +88,7 @@ def test_wave_encoder_decoder_sin_cos_second_derivative():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -96,18 +96,18 @@ def test_wave_encoder_decoder_sin_cos_second_derivative():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.04210818189272664
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.04210817879055879
 
 
 def test_wave_encoder_decoder_sin_cos_third_derivative():
     vocab_size = 65536
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
-            torch.sin(idx),
-            torch.cos(idx),
+            np.sin(idx),
+            np.cos(idx),
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 3
     domain_of_definition = get_domain_of_definition(
@@ -119,7 +119,7 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -128,18 +128,18 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
         order_of_derivative=order_of_derivative,
     )
     # TODO: How to fix this?
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 3080.679396518382
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 3080.6764295209446
 
 
 def test_wave_encoder_sin_cos_different_lenght():
     vocab_size = 256
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
-            torch.sin(idx),
-            torch.cos(idx),
+            np.sin(idx),
+            np.cos(idx),
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
@@ -151,28 +151,28 @@ def test_wave_encoder_sin_cos_different_lenght():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     start_2, scale_2, encoded_inp_2 = encode(
         inp=inp[:16],
         vocab_size=vocab_size,
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp_2 >= 0) & (encoded_inp_2 < vocab_size))
-    assert torch.all(start == start_2)
-    assert torch.all(scale == scale_2)
-    assert torch.all(encoded_inp[:8] == encoded_inp_2[:8])
+    assert np.all((encoded_inp_2 >= 0) & (encoded_inp_2 < vocab_size))
+    assert np.all(start == start_2)
+    assert np.all(scale == scale_2)
+    assert np.all(encoded_inp[:8] == encoded_inp_2[:8])
 
 
 def test_wave_encoder_decoder_lin():
     vocab_size = 4
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
             idx,
-            torch.flip(idx, (0,)),
+            np.flip(idx, (0,)),
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
@@ -184,7 +184,7 @@ def test_wave_encoder_decoder_lin():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -192,12 +192,12 @@ def test_wave_encoder_decoder_lin():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
+    assert float(np.max(np.abs(decoded_inp - inp))) == 0
 
 
 def test_wave_encoder_decoder_const():
     vocab_size = 4
-    inp = torch.ones(1_000_000, dtype=torch.float64).reshape(-1, 1)
+    inp = np.ones(1_000_000, dtype=np.float128).reshape(-1, 1)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -208,7 +208,7 @@ def test_wave_encoder_decoder_const():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -216,12 +216,12 @@ def test_wave_encoder_decoder_const():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
+    assert float(np.max(np.abs(decoded_inp - inp))) == 0
 
 
 def test_wave_encoder_decoder_small_const():
     vocab_size = 4
-    inp = (torch.ones(1_000_000, dtype=torch.float64) * 0.01).reshape(-1, 1)
+    inp = (np.ones(1_000_000, dtype=np.float128) * 0.01).reshape(-1, 1)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -232,7 +232,7 @@ def test_wave_encoder_decoder_small_const():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -240,25 +240,25 @@ def test_wave_encoder_decoder_small_const():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
+    assert float(np.max(np.abs(decoded_inp - inp))) == 0
 
 
 def test_wave_encoder_decoder_mix():
     vocab_size = 256
-    const = torch.ones(1_000_000, dtype=torch.float64)
-    small_const = torch.ones(1_000_000, dtype=torch.float64) * 0.01
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
+    const = np.ones(1_000_000, dtype=np.float128)
+    small_const = np.ones(1_000_000, dtype=np.float128) * 0.01
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
         (
-            torch.sin(idx),
-            torch.cos(idx),
-            torch.sqrt(idx),
+            np.sin(idx),
+            np.cos(idx),
+            np.sqrt(idx),
             idx,
-            torch.flip(idx, (0,)),
+            np.flip(idx, (0,)),
             const,
             small_const,
         ),
-        dim=1,
+        axis=1,
     )
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
@@ -270,7 +270,7 @@ def test_wave_encoder_decoder_mix():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -278,15 +278,15 @@ def test_wave_encoder_decoder_mix():
         vocab_size=vocab_size,
         order_of_derivative=1,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) <= 0.003936999343636671
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.003936999343618852
 
 
 def test_wave_encoder_decoder_square():
     vocab_size = 4
-    idx = torch.arange(1_000_000, dtype=torch.float64)
-    inp = torch.stack(
-        (torch.square(idx),),
-        dim=1,
+    idx = np.arange(1_000_000, dtype=np.float128)
+    inp = np.stack(
+        (np.square(idx),),
+        axis=1,
     )
     order_of_derivative = 2
     domain_of_definition = get_domain_of_definition(
@@ -298,7 +298,7 @@ def test_wave_encoder_decoder_square():
         domain_of_definition=domain_of_definition,
         order_of_derivative=order_of_derivative,
     )
-    assert torch.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
     decoded_inp = decode(
         start=start,
         scale=scale,
@@ -306,4 +306,4 @@ def test_wave_encoder_decoder_square():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(torch.max(torch.abs(decoded_inp - inp))) == 0
+    assert float(np.max(np.abs(decoded_inp - inp))) == 0
