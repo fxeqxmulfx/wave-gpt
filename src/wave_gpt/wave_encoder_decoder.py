@@ -1,6 +1,33 @@
 import numpy as np
 
 
+def differentiate(
+    inp: np.ndarray, order_of_derivative: int
+) -> tuple[np.ndarray, np.ndarray]:
+    assert order_of_derivative >= 0
+    assert inp.dtype == np.float64
+    diff = inp
+    start = np.zeros((0, inp.shape[1]), dtype=inp.dtype)
+    for _ in range(order_of_derivative):
+        start = np.concat((start, np.expand_dims(diff[0], axis=0)), axis=0)
+        diff = np.diff(diff, axis=0)
+    result = start, diff
+    return result
+
+
+def integrate(
+    start: np.ndarray, diff: np.ndarray, order_of_derivative: int
+) -> np.ndarray:
+    assert order_of_derivative >= 0
+    assert start.dtype == diff.dtype == np.float64
+    result = diff
+    for i in range(order_of_derivative):
+        _start = start[-i - 1]
+        result = np.concat((np.expand_dims(_start, axis=0), result), axis=0)
+        result = np.cumsum(result, axis=0)
+    return result
+
+
 def encode(
     inp: np.ndarray,
     vocab_size: int,
@@ -15,11 +42,7 @@ def encode(
     _filter = np.abs(domain_of_definition) > np.finfo(domain_of_definition.dtype).eps
     _scale = (vocab_size - 2) / domain_of_definition[_filter] / 2
     scale[_filter] = _scale
-    diff = inp
-    start = np.zeros((0, inp.shape[1]), dtype=inp.dtype)
-    for _ in range(order_of_derivative):
-        start = np.concat((start, np.expand_dims(diff[0], axis=0)), axis=0)
-        diff = np.diff(diff, axis=0)
+    start, diff = differentiate(inp, order_of_derivative)
     scaled_diff = diff * scale
     trunced_scaled_diff = np.trunc(scaled_diff)
     residual = scaled_diff - trunced_scaled_diff
@@ -46,11 +69,11 @@ def decode(
     assert start.dtype == scale.dtype == np.float64
     assert inp.dtype == np.int64
     inp = (inp - vocab_size // 2) / scale
-    result = inp
-    for i in range(order_of_derivative):
-        _start = start[-i - 1]
-        result = np.concat((np.expand_dims(_start, axis=0), result), axis=0)
-        result = np.cumsum(result, axis=0)
+    result = integrate(
+        start=start,
+        diff=inp,
+        order_of_derivative=order_of_derivative,
+    )
     return result
 
 
