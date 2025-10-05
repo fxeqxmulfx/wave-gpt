@@ -136,6 +136,38 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 3080.6772960623753
 
 
+def test_wave_encoder_decoder_sin_cos_third_derivative_2():
+    vocab_size = 256
+    idx = np.arange(0, 2 * np.pi, 0.000001, dtype=np.float64)
+    inp = np.stack(
+        (
+            np.sin(idx),
+            np.cos(idx),
+        ),
+        axis=1,
+    )
+    inp = np_to_decimal(inp)
+    order_of_derivative = 3
+    domain_of_definition = get_domain_of_definition(
+        inp=inp, order_of_derivative=order_of_derivative
+    )
+    start, scale, encoded_inp = encode(
+        inp=inp,
+        vocab_size=vocab_size,
+        domain_of_definition=domain_of_definition,
+        order_of_derivative=order_of_derivative,
+    )
+    assert np.all((encoded_inp >= 0) & (encoded_inp < vocab_size))
+    decoded_inp = decode(
+        start=start,
+        scale=scale,
+        inp=encoded_inp,
+        vocab_size=vocab_size,
+        order_of_derivative=order_of_derivative,
+    )
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 2.05337387573312e-06
+
+
 def test_wave_encoder_sin_cos_different_lenght():
     vocab_size = 256
     idx = np.arange(1_000_000, dtype=np.float64)

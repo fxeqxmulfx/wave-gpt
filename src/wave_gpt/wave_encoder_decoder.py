@@ -5,18 +5,22 @@ ufunc_decimal = np.frompyfunc(Decimal, 1, 1)
 
 
 def np_to_decimal(inp: np.ndarray) -> np.ndarray:
-    return ufunc_decimal(inp)  # type: ignore
-
-
-ufunc_round = np.frompyfunc(round, 1, 1)
+    result = ufunc_decimal(inp)
+    if isinstance(result, Decimal):
+        result = np.array(result)
+    return result
 
 
 def np_is_decimal(inp: np.ndarray) -> bool:
-    if inp.shape[0] == 0:
+    len_inp_shape = len(inp.shape)
+    if len_inp_shape == 0 or inp.shape[0] == 0:
         return inp.dtype == "object"
-    if len(inp.shape) == 1:
+    if len_inp_shape == 1:
         return isinstance(inp[0], Decimal)
     return isinstance(inp[0, 0], Decimal)
+
+
+ufunc_round = np.frompyfunc(round, 1, 1)
 
 
 def differentiate(
@@ -74,7 +78,7 @@ def encode(
     residual = ufunc_round(residual)
     residual = np.concat(
         (
-            np.zeros(shape=(1, residual.shape[1]), dtype=residual.dtype),
+            np.zeros(shape=(1, residual.shape[1]), dtype=np.int64),
             residual,
         ),
         axis=0,
