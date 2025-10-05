@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wave_gpt.wave_encoder_decoder import get_domain_of_definition
+from wave_gpt.wave_encoder_decoder import get_domain_of_definition, np_to_decimal
 from wave_gpt.wave_model import WaveGPT
 
 
@@ -49,7 +49,7 @@ def main() -> None:
         }
     )
     domain_of_definition = get_domain_of_definition(
-        inp.to_numpy(dtype=np.float64), order_of_derivative=1
+        np_to_decimal(inp.to_numpy(dtype=np.float64)), order_of_derivative=1
     )
     n = 3
     val_loss_array = torch.zeros((n,))
@@ -92,7 +92,9 @@ def main() -> None:
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time
-        mae_loss_array[i] = mae(inp[-8:].to_numpy(), result_df[-8:].to_numpy())
+        mae_loss_array[i] = mae(
+            np_to_decimal(inp[-8:].to_numpy()), result_df[-8:].to_numpy()
+        )
     val_loss = float(torch.mean(val_loss_array))
     train_time = float(torch.mean(train_time_array))
     mae_loss = float(torch.mean(mae_loss_array))

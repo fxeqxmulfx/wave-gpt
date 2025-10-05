@@ -4,7 +4,7 @@ import torch
 
 from wave_gpt.model import GPT
 from wave_gpt.train import train
-from wave_gpt.wave_encoder_decoder import decode, encode
+from wave_gpt.wave_encoder_decoder import decode, encode, np_to_decimal
 
 
 class WaveGPT:
@@ -58,7 +58,7 @@ class WaveGPT:
         use_tqdm: bool = True,
     ) -> tuple[float, int]:
         _, _, encoded_data = encode(
-            inp=df.to_numpy(dtype=np.float64),
+            inp=np_to_decimal(df.to_numpy(dtype=np.float64)),
             vocab_size=self.model.vocab_size,
             domain_of_definition=domain_of_definition,
             order_of_derivative=order_of_derivative,
@@ -93,7 +93,7 @@ class WaveGPT:
         vocab_size = self.model.vocab_size
         device = next(self.model.parameters()).device.type
         start, scale, encoded_data = encode(
-            inp=df.to_numpy(dtype=np.float64),
+            inp=np_to_decimal(df.to_numpy(dtype=np.float64)),
             vocab_size=vocab_size,
             domain_of_definition=domain_of_definition,
             order_of_derivative=order_of_derivative,

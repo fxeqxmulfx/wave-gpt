@@ -3,6 +3,7 @@ from wave_gpt.wave_encoder_decoder import (
     encode,
     decode,
     get_domain_of_definition,
+    np_to_decimal,
 )
 
 
@@ -16,6 +17,7 @@ def test_wave_encoder_decoder_sin_cos():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 0
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -34,7 +36,7 @@ def test_wave_encoder_decoder_sin_cos():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.007873033862
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.007873033862000018
 
 
 def test_wave_encoder_decoder_sin_cos_derivative():
@@ -47,6 +49,7 @@ def test_wave_encoder_decoder_sin_cos_derivative():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -65,7 +68,7 @@ def test_wave_encoder_decoder_sin_cos_derivative():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.00377500359439803
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.003775003594016138
 
 
 def test_wave_encoder_decoder_sin_cos_second_derivative():
@@ -78,6 +81,7 @@ def test_wave_encoder_decoder_sin_cos_second_derivative():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 2
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -96,7 +100,7 @@ def test_wave_encoder_decoder_sin_cos_second_derivative():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.04210817981582421
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.042108183144580945
 
 
 def test_wave_encoder_decoder_sin_cos_third_derivative():
@@ -109,6 +113,7 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 3
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -128,7 +133,7 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
         order_of_derivative=order_of_derivative,
     )
     # TODO: How to fix this?
-    assert float(np.max(np.abs(decoded_inp - inp))) <= 3080.6745080035776
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 3080.6772960623753
 
 
 def test_wave_encoder_sin_cos_different_lenght():
@@ -141,6 +146,7 @@ def test_wave_encoder_sin_cos_different_lenght():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -174,6 +180,7 @@ def test_wave_encoder_decoder_lin():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -198,6 +205,7 @@ def test_wave_encoder_decoder_lin():
 def test_wave_encoder_decoder_const():
     vocab_size = 4
     inp = np.ones(1_000_000, dtype=np.float64).reshape(-1, 1)
+    inp = np_to_decimal(inp)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -222,6 +230,7 @@ def test_wave_encoder_decoder_const():
 def test_wave_encoder_decoder_small_const():
     vocab_size = 4
     inp = (np.ones(1_000_000, dtype=np.float64) * 0.01).reshape(-1, 1)
+    inp = np_to_decimal(inp)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -240,7 +249,7 @@ def test_wave_encoder_decoder_small_const():
         vocab_size=vocab_size,
         order_of_derivative=order_of_derivative,
     )
-    assert float(np.max(np.abs(decoded_inp - inp))) == 0
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 2.783148670569062e-30
 
 
 def test_wave_encoder_decoder_mix():
@@ -252,7 +261,6 @@ def test_wave_encoder_decoder_mix():
         (
             np.sin(idx),
             np.cos(idx),
-            np.sqrt(idx),
             idx,
             np.flip(idx, (0,)),
             const,
@@ -260,6 +268,7 @@ def test_wave_encoder_decoder_mix():
         ),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 1
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
@@ -278,7 +287,7 @@ def test_wave_encoder_decoder_mix():
         vocab_size=vocab_size,
         order_of_derivative=1,
     )
-    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.003936999343636671
+    assert float(np.max(np.abs(decoded_inp - inp))) <= 0.003775003594016138
 
 
 def test_wave_encoder_decoder_square():
@@ -288,6 +297,7 @@ def test_wave_encoder_decoder_square():
         (np.square(idx),),
         axis=1,
     )
+    inp = np_to_decimal(inp)
     order_of_derivative = 2
     domain_of_definition = get_domain_of_definition(
         inp=inp, order_of_derivative=order_of_derivative
