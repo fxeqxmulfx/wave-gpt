@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from wave_gpt.model import GPT
 from wave_gpt.wave_encoder_decoder import get_domain_of_definition, np_to_decimal
 from wave_gpt.wave_model import WaveGPT
 
@@ -39,6 +40,7 @@ def main() -> None:
     train_part = 0.9
     temperature = 1
     top_p = 0.95
+    use_checkpoint = True
     use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
     idx = np.arange(1_000_000, dtype=np.float64)
@@ -56,8 +58,7 @@ def main() -> None:
     train_time_array = torch.zeros((n,))
     mae_loss_array = torch.zeros((n,))
     for i in range(n):
-        model = WaveGPT(
-            device=device,
+        base_model = GPT(
             vocab_size=vocab_size,
             n_embd=n_embd,
             block_size=block_size,
@@ -69,7 +70,10 @@ def main() -> None:
             swiglu_limit=swiglu_limit,
             temperature=temperature,
             top_p=top_p,
+            use_checkpoint=use_checkpoint,
         )
+        base_model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
+        model = WaveGPT(base_model)
         val_loss, train_time = model.train(
             df=inp,
             order_of_derivative=1,

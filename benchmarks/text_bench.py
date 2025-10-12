@@ -1,4 +1,5 @@
 from typing import Iterable
+
 import torch
 
 from wave_gpt.model import GPT

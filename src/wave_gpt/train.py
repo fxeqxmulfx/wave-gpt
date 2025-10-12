@@ -1,10 +1,9 @@
 from datetime import datetime
 
 import torch
-import torch.nn as nn
 from tqdm.autonotebook import tqdm
 
-from wave_gpt.model import GPT
+from wave_gpt.model import BaseGPT
 from wave_gpt.optimizer.adamw_schedulefree import AdamWScheduleFree
 
 
@@ -47,14 +46,14 @@ def get_batch(
 
 @torch.inference_mode()
 def estimate_loss(
-    model: nn.Module,
+    model: BaseGPT,
     train_data: tuple[int, ...],
     val_data: tuple[int, ...],
     batch_size: int,
     block_size: int,
     eval_iters: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    device = next(model.parameters()).device.type
+    device = model.device_type
     train = torch.Tensor()
     val = train
     for split in ["train", "val"]:
@@ -78,7 +77,7 @@ def estimate_loss(
 
 
 def train(
-    mut_model: GPT,
+    mut_model: BaseGPT,
     encoded_data: tuple[int, ...],
     learning_rate: float = 1e-2,
     betas: tuple[float, float] = (0.9, 0.95),
@@ -90,7 +89,7 @@ def train(
     train_part: float = 0.9,
     use_tqdm: bool = True,
 ) -> tuple[float, int]:
-    device = next(mut_model.parameters()).device.type
+    device = mut_model.device_type
     train_data, val_data = split_data(encoded_data, train_part)
     optimizer = AdamWScheduleFree(
         mut_model.parameters(),

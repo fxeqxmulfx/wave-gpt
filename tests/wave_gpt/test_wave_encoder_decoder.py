@@ -1,7 +1,8 @@
 import numpy as np
+
 from wave_gpt.wave_encoder_decoder import (
-    encode,
     decode,
+    encode,
     get_domain_of_definition,
     np_to_decimal,
 )

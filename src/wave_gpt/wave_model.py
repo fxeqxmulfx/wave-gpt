@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wave_gpt.model import GPT
+from wave_gpt.model import BaseGPT
 from wave_gpt.train import train
 from wave_gpt.wave_encoder_decoder import decode, encode, np_to_decimal
 
@@ -12,37 +12,8 @@ class WaveGPT:
 
     def __init__(
         self,
-        device: str,
-        vocab_size: int,
-        n_embd: int = 64,
-        block_size: int = 32,
-        n_head: int = 4,
-        n_layer: int = 4,
-        rmsnorm_eps: float = 1e-5,
-        rope_theta: float = 10000,
-        swiglu_alpha: float = 1.702,
-        swiglu_limit: float = 7.0,
-        temperature: float = 1,
-        top_p: float = 0.95,
-        use_checkpoint: bool = True,
-        model_constructor=GPT,
+        model: BaseGPT,
     ) -> None:
-        model = model_constructor(
-            vocab_size=vocab_size,
-            n_embd=n_embd,
-            block_size=block_size,
-            n_head=n_head,
-            n_layer=n_layer,
-            rmsnorm_eps=rmsnorm_eps,
-            rope_theta=rope_theta,
-            swiglu_alpha=swiglu_alpha,
-            swiglu_limit=swiglu_limit,
-            temperature=temperature,
-            top_p=top_p,
-            use_checkpoint=use_checkpoint,
-        )
-        model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
-        model.eval()
         self.model = model
 
     def train(
@@ -94,7 +65,7 @@ class WaveGPT:
         columns = df.shape[1]
         assert (df.shape[0] + max_new_points - 1) * columns <= self.model.block_size
         vocab_size = self.model.vocab_size
-        device = next(self.model.parameters()).device.type
+        device = self.model.device_type
         start, scale, encoded_data = encode(
             inp=np_to_decimal(df.to_numpy(dtype=np.float64)),
             vocab_size=vocab_size,

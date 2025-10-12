@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 import numpy as np
 
 ufunc_decimal = np.frompyfunc(Decimal, 1, 1)

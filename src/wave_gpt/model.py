@@ -1,10 +1,12 @@
+from abc import ABC, abstractmethod
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
-from wave_gpt.sampling.temperature import TemperatureSampler
 from wave_gpt.sampling.nucleus import NucleusSampler
+from wave_gpt.sampling.temperature import TemperatureSampler
 
 
 class RMSNorm(torch.nn.Module):
@@ -136,7 +138,33 @@ class Block(nn.Module):
         return x
 
 
-class GPT(nn.Module):
+class BaseGPT(nn.Module, ABC):
+    def __init__(
+        self,
+        block_size: int,
+        vocab_size: int,
+    ) -> None:
+        super().__init__()
+        self.block_size = block_size
+        self.vocab_size = vocab_size
+
+    @abstractmethod
+    def forward(
+        self, idx: torch.Tensor, targets: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        pass
+
+    @abstractmethod
+    def generate(self, idx: torch.Tensor, max_new_tokens: int) -> torch.Tensor:
+        pass
+
+    @property
+    @abstractmethod
+    def device_type(self) -> str:
+        pass
+
+
+class GPT(BaseGPT):
     def __init__(
         self,
         vocab_size: int,
@@ -152,9 +180,10 @@ class GPT(nn.Module):
         top_p: float = 0.95,
         use_checkpoint: bool = True,
     ) -> None:
-        super().__init__()
-        self.block_size = block_size
-        self.vocab_size = vocab_size
+        super().__init__(
+            block_size=block_size,
+            vocab_size=vocab_size,
+        )
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.blocks = nn.ModuleList(
             Block(
@@ -242,3 +271,8 @@ class GPT(nn.Module):
             idx_next = self.sampler(logits)  # (B, 1)
             all_tokens[:, current_pos] = idx_next.squeeze()
         return all_tokens
+
+    @property
+    def device_type(self) -> str:
+        result = str(self.freqs_cis.device.type)
+        return result

@@ -1,14 +1,14 @@
 [project]
 name = "wave-gpt"
-version = "0.20.0"
+version = "0.21.0"
 description = "Add your description here"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.13"
 dependencies = [
-    "numpy>=2.3.2",
-    "pandas>=2.3.2",
+    "numpy>=2.3.3",
+    "pandas>=2.3.3",
     "torch>=2.8.0",
     "tqdm>=4.67.1",
 ]
