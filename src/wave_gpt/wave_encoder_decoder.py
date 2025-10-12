@@ -27,6 +27,7 @@ def differentiate(
     inp: np.ndarray, order_of_derivative: int
 ) -> tuple[np.ndarray, np.ndarray]:
     assert order_of_derivative >= 0
+    assert order_of_derivative <= inp.shape[0]
     assert np_is_decimal(inp)
     diff = inp
     start = np.zeros((0, inp.shape[1]), dtype=inp.dtype)
@@ -42,7 +43,7 @@ def differentiate(
 def integrate(
     start: np.ndarray, diff: np.ndarray, order_of_derivative: int
 ) -> np.ndarray:
-    assert order_of_derivative >= 0
+    assert order_of_derivative == start.shape[0]
     assert np_is_decimal(start)
     assert np_is_decimal(diff)
     result = diff
