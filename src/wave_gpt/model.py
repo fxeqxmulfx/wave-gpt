@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 
 from wave_gpt.sampling.temperature import TemperatureSampler
 from wave_gpt.sampling.nucleus import NucleusSampler
@@ -149,6 +150,7 @@ class GPT(nn.Module):
         swiglu_limit: float = 7.0,
         temperature: float = 1,
         top_p: float = 0.95,
+        use_checkpoint: bool = True,
     ) -> None:
         super().__init__()
         self.block_size = block_size
@@ -176,6 +178,7 @@ class GPT(nn.Module):
                 n_embd // n_head, block_size * 2, theta=rope_theta
             ),
         )
+        self.use_checkpoint = use_checkpoint
 
     @staticmethod
     def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
@@ -200,7 +203,15 @@ class GPT(nn.Module):
             self.freqs_cis[:T]  # pyright: ignore[reportIndexIssue]
         )  # (T, hs/2)
         for block in self.blocks:
-            x = block(x, freqs_cis=freqs_cis)  # (B, T, C)
+            if self.training and self.use_checkpoint:
+                x = checkpoint(
+                    block,
+                    x,
+                    freqs_cis=freqs_cis,
+                    use_reentrant=False,
+                )  # (B, T, C)
+            else:
+                x = block(x, freqs_cis=freqs_cis)
         x = self.norm(x)  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, vocab_size)
         loss = None

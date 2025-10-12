@@ -24,8 +24,10 @@ class WaveGPT:
         swiglu_limit: float = 7.0,
         temperature: float = 1,
         top_p: float = 0.95,
+        use_checkpoint: bool = True,
+        model_constructor=GPT,
     ) -> None:
-        model = GPT(
+        model = model_constructor(
             vocab_size=vocab_size,
             n_embd=n_embd,
             block_size=block_size,
@@ -37,6 +39,7 @@ class WaveGPT:
             swiglu_limit=swiglu_limit,
             temperature=temperature,
             top_p=top_p,
+            use_checkpoint=use_checkpoint,
         )
         model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
         model.eval()
