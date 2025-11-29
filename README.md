@@ -18,3 +18,4 @@ Links:
 - [arxiv.org: GLU Variants Improve Transformer](https://arxiv.org/abs/2002.05202)
 - [arxiv.org: The Road Less Scheduled](https://arxiv.org/abs/2405.15682)
 - [arxiv.org: The Curious Case of Neural Text Degeneration](https://arxiv.org/abs/1904.09751)
+- [arxiv.org: Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free](https://arxiv.org/abs/2505.06708)

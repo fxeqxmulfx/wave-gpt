@@ -24,16 +24,19 @@ class RMSNorm(torch.nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, n_embd: int, n_head: int) -> None:
+    def __init__(self, n_embd: int, n_head: int, rmsnorm_eps: float) -> None:
         super().__init__()
         assert n_embd % n_head == 0
         assert n_head % 2 == 0
         self.n_embd = n_embd
         self.n_head = n_head
         # key, query, value projections for all heads, but in a batch
-        self.c_attn = nn.Linear(n_embd, 3 * n_embd)
+        self.c_attn = nn.Linear(n_embd, 4 * n_embd)
         # output projection
         self.c_proj = nn.Linear(n_embd, n_embd)
+        self.head_dim = n_embd // n_head
+        self.q_norm = RMSNorm(self.head_dim, eps=rmsnorm_eps)
+        self.k_norm = RMSNorm(self.head_dim, eps=rmsnorm_eps)
 
     @staticmethod
     def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
@@ -51,7 +54,7 @@ class MultiHeadAttention(nn.Module):
             x.size()
         )  # batch size, sequence length, embedding dimensionality (n_embd)
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+        q, k, v, g = self.c_attn(x).split(self.n_embd, dim=2)
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(
             1, 2
         )  # (B, nh, T, hs)
@@ -61,6 +64,8 @@ class MultiHeadAttention(nn.Module):
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(
             1, 2
         )  # (B, nh, T, hs)
+        q = self.q_norm(q)
+        k = self.k_norm(k)
         # RoPE
         freqs_cis = freqs_cis.unsqueeze(0).unsqueeze(0)
         k = self.apply_rotary_emb(k, freqs_cis)
@@ -76,6 +81,7 @@ class MultiHeadAttention(nn.Module):
         y = (
             y.transpose(1, 2).contiguous().view(B, T, C)
         )  # re-assemble all head outputs side by side
+        y = y * F.sigmoid(g)
         # output projection
         y = self.c_proj(y)
         return y
@@ -125,6 +131,7 @@ class Block(nn.Module):
         self.sa = MultiHeadAttention(
             n_embd=n_embd,
             n_head=n_head,
+            rmsnorm_eps=rmsnorm_eps,
         )
         self.ffwd = FeedFoward(
             n_embd=n_embd, swiglu_alpha=swiglu_alpha, swiglu_limit=swiglu_limit

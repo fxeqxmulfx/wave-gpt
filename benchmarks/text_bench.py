@@ -52,6 +52,7 @@ class Decoder:
 # ADD RoPE: val_loss=1.76 train_time=28.67
 # ADD SwiGLU: val_loss=1.74 train_time=29.67
 # ADD AdamWScheduleFree: val_loss=1.68 train_time=28.0
+# ADD KQ norm and Gated Attention: val_loss=1.67 train_time=43.0
 
 
 def main() -> None:
