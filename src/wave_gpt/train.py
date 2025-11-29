@@ -88,6 +88,7 @@ def train(
     batch_size: int = 16,
     train_part: float = 0.9,
     use_tqdm: bool = True,
+    use_early_stopping: bool = True,
 ) -> tuple[float, int]:
     device = mut_model.device_type
     train_data, val_data = split_data(encoded_data, train_part)
@@ -105,6 +106,7 @@ def train(
     val_loss = torch.inf
     mut_model.train()
     optimizer.train()
+    last_val_loss = torch.inf
     for iter in pbar:
         if iter % eval_interval == 0 or iter == max_iters - 1:
             mut_model.eval()
@@ -126,6 +128,9 @@ def train(
                 pbar.set_description(status)
             else:
                 print(status)
+            if use_early_stopping and last_val_loss < val_loss:
+                break
+            last_val_loss = val_loss
         xb, yb = get_batch(
             data=train_data,
             batch_size=batch_size,

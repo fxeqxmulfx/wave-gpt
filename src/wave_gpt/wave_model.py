@@ -3,6 +3,7 @@ import pandas as pd
 import torch
 
 from wave_gpt.model import BaseGPT
+from wave_gpt.sampling import Sampler
 from wave_gpt.train import train
 from wave_gpt.wave_encoder_decoder import decode, encode, np_to_decimal
 
@@ -75,6 +76,8 @@ class WaveGPT:
         self,
         df: pd.DataFrame,
         max_new_points: int,
+        beam_width: int,
+        sampler: Sampler | None,
     ) -> pd.DataFrame:
         columns = df.shape[1]
         assert (df.shape[0] + max_new_points - 1) * columns <= self.model.block_size
@@ -99,6 +102,8 @@ class WaveGPT:
             self.model.generate(
                 context,
                 max_new_tokens=max_new_points * columns,
+                beam_width=beam_width,
+                sampler=sampler,
             )
             .cpu()
             .numpy()[0]

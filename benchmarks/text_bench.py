@@ -73,8 +73,6 @@ def main() -> None:
     swiglu_alpha = 1.702
     swiglu_limit = 7.0
     train_part = 0.9
-    temperature = 1
-    top_p = 0.95
     use_checkpoint = True
     use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -99,8 +97,6 @@ def main() -> None:
             rope_theta=rope_theta,
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
-            top_p=top_p,
-            temperature=temperature,
             use_checkpoint=use_checkpoint,
         )
         model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
@@ -124,7 +120,16 @@ def main() -> None:
     print(f"val_loss={round(val_loss, 2)} train_time={round(train_time, 2)}")
     context = torch.zeros((1, 1), dtype=torch.int64, device=device)
     if model is not None:
-        print(decoder.decode(model.generate(context, max_new_tokens=2000)[0].tolist()))
+        print(
+            decoder.decode(
+                model.generate(
+                    context,
+                    max_new_tokens=2000,
+                    beam_width=1,
+                    sampler=None,
+                )[0].tolist()
+            )
+        )
 
 
 if __name__ == "__main__":

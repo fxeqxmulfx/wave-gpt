@@ -38,8 +38,6 @@ def main() -> None:
     swiglu_alpha = 1.702
     swiglu_limit = 7.0
     train_part = 0.9
-    temperature = 1
-    top_p = 0.95
     use_checkpoint = True
     use_tqdm = True
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -70,8 +68,6 @@ def main() -> None:
             rope_theta=rope_theta,
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
-            temperature=temperature,
-            top_p=top_p,
             use_checkpoint=use_checkpoint,
         )
         base_model.to(device=device).compile(mode="max-autotune-no-cudagraphs")
@@ -96,6 +92,8 @@ def main() -> None:
         result_df = model.predict(
             df=inp[-16:-8],
             max_new_points=8,
+            beam_width=1,
+            sampler=None,
         )
         val_loss_array[i] = val_loss
         train_time_array[i] = train_time

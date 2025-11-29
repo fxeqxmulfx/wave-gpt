@@ -5,8 +5,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
-from wave_gpt.sampling.nucleus import NucleusSampler
-from wave_gpt.sampling.temperature import TemperatureSampler
+from wave_gpt.sampling import Sampler
 
 
 class RMSNorm(torch.nn.Module):
@@ -162,7 +161,13 @@ class BaseGPT(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def generate(self, idx: torch.Tensor, max_new_tokens: int) -> torch.Tensor:
+    def generate(
+        self,
+        idx: torch.Tensor,
+        max_new_tokens: int,
+        beam_width: int,
+        sampler: Sampler | None,
+    ) -> torch.Tensor:
         pass
 
     @property
@@ -183,8 +188,6 @@ class GPT(BaseGPT):
         rope_theta: float = 10000,
         swiglu_alpha: float = 1.702,
         swiglu_limit: float = 7.0,
-        temperature: float = 1,
-        top_p: float = 0.95,
         use_checkpoint: bool = True,
     ) -> None:
         super().__init__(
@@ -205,9 +208,6 @@ class GPT(BaseGPT):
         self.norm = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding_table.weight
-        self.sampler = NucleusSampler(
-            p=top_p, sampler=TemperatureSampler(temperature=temperature)
-        )
         self.register_buffer(
             "freqs_cis",
             self.precompute_freqs_cis(
@@ -259,7 +259,19 @@ class GPT(BaseGPT):
         return logits, loss
 
     @torch.inference_mode()
-    def generate(self, idx: torch.Tensor, max_new_tokens: int) -> torch.Tensor:
+    def generate(
+        self,
+        idx: torch.Tensor,
+        max_new_tokens: int,
+        beam_width: int,
+        sampler: Sampler | None,
+    ) -> torch.Tensor:
+        if beam_width > 1:
+            return self.generate_beam_sequential(
+                idx=idx,
+                max_new_tokens=max_new_tokens,
+                beam_width=beam_width,
+            )
         block_size = self.block_size
         device = idx.device
         B, T = idx.shape
@@ -275,9 +287,43 @@ class GPT(BaseGPT):
             idx_cond = all_tokens[:, start_slice:current_pos]
             logits, _ = self(idx_cond)
             logits = logits[:, -1]  # (B, C)
-            idx_next = self.sampler(logits)  # (B, 1)
+            if sampler is not None:
+                idx_next = sampler(logits)
+            else:
+                probs = F.softmax(logits, dim=-1)  # (B, C)
+                idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
             all_tokens[:, current_pos] = idx_next.squeeze()
         return all_tokens
+
+    def generate_beam_sequential(
+        self, idx: torch.Tensor, max_new_tokens: int, beam_width: int
+    ) -> torch.Tensor:
+        B, _ = idx.shape
+        device = idx.device
+        results = []
+        for i in range(B):
+            beams = idx[i].unsqueeze(0).repeat(beam_width, 1)
+            scores = torch.full((beam_width,), -float("inf"), device=device)
+            scores[0] = 0.0
+            for _ in range(max_new_tokens):
+                cur_len = beams.shape[1]
+                start_slice = max(0, cur_len - self.block_size)
+                idx_cond = beams[:, start_slice:]
+                logits, _ = self(idx_cond)
+                next_token_logits = logits[:, -1, :]
+                log_probs = F.log_softmax(next_token_logits, dim=-1)
+                cand_scores = scores.unsqueeze(1) + log_probs
+                cand_scores_flat = cand_scores.view(-1)
+                best_scores, best_indices = torch.topk(cand_scores_flat, k=beam_width)
+                prev_beam_indices = best_indices.div(
+                    self.vocab_size, rounding_mode="floor"
+                )
+                next_tokens = best_indices % self.vocab_size
+                selected_beams = beams[prev_beam_indices]
+                beams = torch.cat([selected_beams, next_tokens.unsqueeze(1)], dim=1)
+                scores = best_scores
+            results.append(beams[0:1])
+        return torch.cat(results, dim=0)
 
     @property
     def device_type(self) -> str:
