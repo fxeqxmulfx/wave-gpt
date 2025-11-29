@@ -37,9 +37,8 @@ class TemperatureSampler(Sampler):
         """
         Sample from logits
         """
-
-        # Create a categorical distribution with temperature adjusted logits
-        dist = Categorical(logits=logits / self.temperature)
-
-        # Sample
+        temperature = self.temperature
+        if temperature == 0:
+            return torch.argmax(logits, dim=-1)
+        dist = Categorical(logits=logits / temperature)
         return dist.sample()
