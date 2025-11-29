@@ -103,7 +103,7 @@ class SwiGLU(nn.Module):
         return out_glu * (x_linear + 1)
 
 
-class FeedFoward(nn.Module):
+class FeedForward(nn.Module):
     def __init__(self, n_embd: int, swiglu_alpha: float, swiglu_limit: float) -> None:
         super().__init__()
         self.net = nn.Sequential(
@@ -132,7 +132,7 @@ class Block(nn.Module):
             n_head=n_head,
             rmsnorm_eps=rmsnorm_eps,
         )
-        self.ffwd = FeedFoward(
+        self.ffwd = FeedForward(
             n_embd=n_embd, swiglu_alpha=swiglu_alpha, swiglu_limit=swiglu_limit
         )
         self.norm_1 = RMSNorm(num_features=n_embd, eps=rmsnorm_eps)
