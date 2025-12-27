@@ -4,7 +4,7 @@ import torch
 
 from diff_gpt.model.gpt import GPT
 from diff_gpt.encoder_decoder import get_domain_of_definition, np_to_decimal
-from diff_gpt.model.diff_gpt import DiffGPT
+from diff_gpt.diff_gpt import DiffGPT
 
 
 def mae(x: np.ndarray, y: np.ndarray) -> float:
