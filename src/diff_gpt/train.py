@@ -3,8 +3,8 @@ from datetime import datetime
 import torch
 from tqdm.autonotebook import tqdm
 
-from wave_gpt.model import BaseGPT
-from wave_gpt.optimizer.adamw_schedulefree import AdamWScheduleFree
+from diff_gpt.model.gpt import BaseGPT
+from diff_gpt.optimizer.adamw_schedulefree import AdamWScheduleFree
 
 
 def split_data(

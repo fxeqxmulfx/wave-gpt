@@ -29,7 +29,7 @@ Here's an [experiment](experiment.html) that uses these sampling techniques.
 import torch
 from torch import nn
 
-from wave_gpt.sampling import Sampler
+from diff_gpt.sampling import Sampler
 
 
 class NucleusSampler(Sampler):

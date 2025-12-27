@@ -2,8 +2,8 @@ from typing import Iterable
 
 import torch
 
-from wave_gpt.model import GPT
-from wave_gpt.train import train
+from diff_gpt.model.gpt import GPT
+from diff_gpt.train import train
 
 
 def load_data() -> str:
@@ -53,6 +53,7 @@ class Decoder:
 # ADD SwiGLU: val_loss=1.74 train_time=29.67
 # ADD AdamWScheduleFree: val_loss=1.68 train_time=28.0
 # ADD KQ norm and Gated Attention: val_loss=1.67 train_time=43.0
+# CLR project: val_loss=1.68 train_time=37.33
 
 
 def main() -> None:
@@ -68,7 +69,6 @@ def main() -> None:
     eval_interval = 5_000
     eval_iters = 200
     batch_size = 16
-    rmsnorm_eps = 1e-5
     rope_theta = 10000
     swiglu_alpha = 1.702
     swiglu_limit = 7.0
@@ -93,7 +93,6 @@ def main() -> None:
             block_size=block_size,
             n_head=n_head,
             n_layer=n_layer,
-            rmsnorm_eps=rmsnorm_eps,
             rope_theta=rope_theta,
             swiglu_alpha=swiglu_alpha,
             swiglu_limit=swiglu_limit,
@@ -125,7 +124,6 @@ def main() -> None:
                 model.generate(
                     context,
                     max_new_tokens=2000,
-                    beam_width=1,
                     sampler=None,
                 )[0].tolist()
             )

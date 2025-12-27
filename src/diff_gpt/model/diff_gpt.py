@@ -2,13 +2,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wave_gpt.model import BaseGPT
-from wave_gpt.sampling import Sampler
-from wave_gpt.train import train
-from wave_gpt.wave_encoder_decoder import decode, encode, np_to_decimal
+from diff_gpt.model.gpt import BaseGPT
+from diff_gpt.sampling import Sampler
+from diff_gpt.train import train
+from diff_gpt.encoder_decoder import decode, encode, np_to_decimal
 
 
-class WaveGPT:
+class DiffGPT:
     __slots__ = (
         "model",
         "order_of_derivative",
@@ -76,7 +76,6 @@ class WaveGPT:
         self,
         df: pd.DataFrame,
         max_new_points: int,
-        beam_width: int,
         sampler: Sampler | None,
     ) -> pd.DataFrame:
         columns = df.shape[1]
@@ -102,7 +101,6 @@ class WaveGPT:
             self.model.generate(
                 context,
                 max_new_tokens=max_new_points * columns,
-                beam_width=beam_width,
                 sampler=sampler,
             )
             .cpu()
@@ -120,9 +118,9 @@ class WaveGPT:
         result = pd.DataFrame(decoded, columns=df.columns)
         return result
 
-    def save(self, path: str = "wave-gpt.bin") -> None:
+    def save(self, path: str = "diff-gpt.bin") -> None:
         torch.save(self.model.state_dict(), path)
 
-    def load(self, path: str = "wave-gpt.bin") -> None:
+    def load(self, path: str = "diff-gpt.bin") -> None:
         self.model.load_state_dict(torch.load(path, weights_only=True))
         self.model.eval()

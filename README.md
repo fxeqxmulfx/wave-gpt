@@ -1,4 +1,4 @@
-# wave-gpt
+# diff-gpt
 
 Limitation:
 ```math

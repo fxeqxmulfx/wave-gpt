@@ -1,6 +1,6 @@
 import numpy as np
 
-from wave_gpt.wave_encoder_decoder import (
+from diff_gpt.encoder_decoder import (
     decode,
     encode,
     get_domain_of_definition,
@@ -8,7 +8,7 @@ from wave_gpt.wave_encoder_decoder import (
 )
 
 
-def test_wave_encoder_decoder_sin_cos():
+def test_diff_encoder_decoder_sin_cos():
     vocab_size = 256
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(
@@ -45,7 +45,7 @@ def test_wave_encoder_decoder_sin_cos():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 0.007873033862000018
 
 
-def test_wave_encoder_decoder_sin_cos_derivative():
+def test_diff_encoder_decoder_sin_cos_derivative():
     vocab_size = 256
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(
@@ -82,7 +82,7 @@ def test_wave_encoder_decoder_sin_cos_derivative():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 0.003775003594016138
 
 
-def test_wave_encoder_decoder_sin_cos_second_derivative():
+def test_diff_encoder_decoder_sin_cos_second_derivative():
     vocab_size = 4096
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(
@@ -119,7 +119,7 @@ def test_wave_encoder_decoder_sin_cos_second_derivative():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 0.042108183144580945
 
 
-def test_wave_encoder_decoder_sin_cos_third_derivative():
+def test_diff_encoder_decoder_sin_cos_third_derivative():
     vocab_size = 65536
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(
@@ -157,7 +157,7 @@ def test_wave_encoder_decoder_sin_cos_third_derivative():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 3080.6772960623753
 
 
-def test_wave_encoder_decoder_sin_cos_third_derivative_2():
+def test_diff_encoder_decoder_sin_cos_third_derivative_2():
     vocab_size = 256
     idx = np.arange(0, 2 * np.pi, 0.000001, dtype=np.float64)
     inp = np.stack(
@@ -194,7 +194,7 @@ def test_wave_encoder_decoder_sin_cos_third_derivative_2():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 2.05337387573312e-06
 
 
-def test_wave_encoder_sin_cos_different_lenght():
+def test_diff_encoder_sin_cos_different_lenght():
     vocab_size = 256
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(
@@ -233,7 +233,7 @@ def test_wave_encoder_sin_cos_different_lenght():
     assert np.all(encoded_inp[:8] == encoded_inp_2[:8])
 
 
-def test_wave_encoder_decoder_lin():
+def test_diff_encoder_decoder_lin():
     vocab_size = 4
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(
@@ -270,7 +270,7 @@ def test_wave_encoder_decoder_lin():
     assert float(np.max(np.abs(decoded_inp - inp))) == 0
 
 
-def test_wave_encoder_decoder_const():
+def test_diff_encoder_decoder_const():
     vocab_size = 4
     inp = np.ones(1_000_000, dtype=np.float64).reshape(-1, 1)
     inp = np_to_decimal(inp)
@@ -300,7 +300,7 @@ def test_wave_encoder_decoder_const():
     assert float(np.max(np.abs(decoded_inp - inp))) == 0
 
 
-def test_wave_encoder_decoder_small_const():
+def test_diff_encoder_decoder_small_const():
     vocab_size = 4
     inp = (np.ones(1_000_000, dtype=np.float64) * 0.01).reshape(-1, 1)
     inp = np_to_decimal(inp)
@@ -330,7 +330,7 @@ def test_wave_encoder_decoder_small_const():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 2.783148670569062e-30
 
 
-def test_wave_encoder_decoder_mix():
+def test_diff_encoder_decoder_mix():
     vocab_size = 256
     const = np.ones(1_000_000, dtype=np.float64)
     small_const = np.ones(1_000_000, dtype=np.float64) * 0.01
@@ -373,7 +373,7 @@ def test_wave_encoder_decoder_mix():
     assert float(np.max(np.abs(decoded_inp - inp))) <= 0.003775003594016138
 
 
-def test_wave_encoder_decoder_square():
+def test_diff_encoder_decoder_square():
     vocab_size = 4
     idx = np.arange(1_000_000, dtype=np.float64)
     inp = np.stack(

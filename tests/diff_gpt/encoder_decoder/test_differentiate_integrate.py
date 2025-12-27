@@ -3,7 +3,7 @@ from decimal import Decimal
 import numpy as np
 import pytest
 
-from wave_gpt.wave_encoder_decoder import differentiate, integrate, np_to_decimal
+from diff_gpt.encoder_decoder import differentiate, integrate, np_to_decimal
 
 
 def test_zero_order_differentiate_integrate_sin_cos():

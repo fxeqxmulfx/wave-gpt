@@ -1,17 +1,12 @@
 [project]
-name = "wave-gpt"
-version = "0.24.2"
+name = "diff-gpt"
+version = "0.25.0"
 description = "Add your description here"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.13"
-dependencies = [
-    "numpy>=2.3.3",
-    "pandas>=2.3.3",
-    "torch>=2.8.0",
-    "tqdm>=4.67.1",
-]
+dependencies = ["numpy>=2.3.3", "pandas>=2.3.3", "torch>=2.8.0", "tqdm>=4.67.1"]
 
 [dependency-groups]
 dev = ["pytest>=8.4.2"]
